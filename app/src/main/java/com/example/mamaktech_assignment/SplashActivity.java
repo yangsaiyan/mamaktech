@@ -25,6 +25,7 @@ public class SplashActivity extends Activity {
         };
         handler.postDelayed(runnable, 1500);
     }
+    
     @Override
     protected void onDestroy() {
         super.onDestroy();
