@@ -14,6 +14,13 @@ public class MainActivity extends AppCompatActivity {
 
         //added new lines for testing
 
+<<<<<<< HEAD
         
+=======
+
+        //added new lines for testing 1
+
+        //added new lines for testing 2
+>>>>>>> b14e4208f9d4d1805f97064abaf6749533695ea7
     }
 }
