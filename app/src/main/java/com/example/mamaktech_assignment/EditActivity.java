@@ -18,9 +18,13 @@ import android.widget.PopupMenu;
 import android.widget.Toast;
 import android.view.inputmethod.InputMethodManager;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class EditActivity extends AppCompatActivity {
 
+    List<Note> note = new ArrayList<>();
     private LinearLayout addContentLayout;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,13 +82,6 @@ public class EditActivity extends AppCompatActivity {
         editText.setTextColor(Color.BLACK); // Set text color
         editText.setHintTextColor(Color.GRAY); // Set hint text color
         editText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18); // Set text size in SP
-
-        // Background and padding
-        editText.setBackgroundResource(android.R.drawable.edit_text); // Default EditText background
-        editText.setPadding(32, 32, 32, 32); // Internal padding (in pixels)
-
-        // Minimum height to ensure visibility
-        editText.setMinHeight(120); // Minimum height in pixels
 
         addContentLayout.addView(editText);
         addContentLayout.requestLayout();

@@ -4,13 +4,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -19,8 +22,15 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity {
 
+    List<Note> note = new ArrayList<>();
+    //Maybe export Hashmap to json? each note represents one json?
+    private HashMap<String, Note> noteMap = new HashMap<>();
     private TextView textViewEditable;
     private EditText editText;
     private ScrollView scrollView;
@@ -67,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         popupMenu.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
             if (id == R.id.Share) {
+                addChecklistNote("");
                 Toast.makeText(MainActivity.this, "Share clicked", Toast.LENGTH_SHORT).show();
             } else if (id == R.id.Pin) {
                 Toast.makeText(MainActivity.this, "Pin clicked", Toast.LENGTH_SHORT).show();
@@ -89,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
         editText.setTextSize(20);
         editText.setText(textViewEditable.getText());
         editText.setPadding(60, 0 , 0, 0);
-        editText.setBackground(null);
+        editText.setBackgroundColor(Color.TRANSPARENT);
         editText.requestFocus();
 
         int index = parentLayout.indexOfChild(textViewEditable);
@@ -113,40 +124,80 @@ public class MainActivity extends AppCompatActivity {
         parentLayout.addView(textViewEditable, index);
     }
 
-    public void addEditTextDefault() {
-        EditText editText = new EditText(this);
+    public void addTextNote(String text) {
+        Note newNote = new Note(text);
+        note.add(newNote);
+        noteMap.put(newNote.getId(), newNote);
+        addTextViewToLayout(text);
+    }
 
-        // Layout parameters with margins
+    public void addImageNote(Uri imageUri) {
+        Note newNote = new Note(imageUri);
+        note.add(newNote);
+        noteMap.put(newNote.getId(), newNote);
+        addImageViewToLayout(newNote.getImageUri());
+    }
+
+    public void addChecklistNote(String checklistText) {
+        Note newNote = new Note(checklistText, false);
+        note.add(newNote);
+        noteMap.put(newNote.getId(), newNote);
+        addChecklistToLayout(checklistText, false);
+    }
+    private void addTextViewToLayout(String text) {
+        EditText editText = new EditText(this);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(16, 16, 16, 16); // Add margins (left, top, right, bottom)
+        params.setMargins(16, 16, 16, 16);
         editText.setLayoutParams(params);
-
-        // Text and hint styling
         editText.setHint("Enter text here...");
-        editText.setTextColor(Color.BLACK); // Set text color
-        editText.setHintTextColor(Color.GRAY); // Set hint text color
-        editText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18); // Set text size in SP
-
-        // Background and padding
-        editText.setBackgroundResource(android.R.drawable.edit_text); // Default EditText background
-        editText.setPadding(32, 32, 32, 32); // Internal padding (in pixels)
-
-        // Minimum height to ensure visibility
-        editText.setMinHeight(120); // Minimum height in pixels
-
+        editText.setBackgroundColor(Color.TRANSPARENT);
+        editText.setTextColor(Color.BLACK);
+        editText.setHintTextColor(Color.GRAY);
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        editText.setText(text);
         addContentLayout.addView(editText);
-        addContentLayout.requestLayout();
+    }
 
-        // Request focus and show keyboard after a slight delay
-        editText.postDelayed(() -> {
-            editText.requestFocus();
-            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) {
-                imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT);
+    private void addImageViewToLayout(Uri imageUri) {
+        ImageView imageView = new ImageView(this);
+        imageView.setImageURI(imageUri);
+        addContentLayout.addView(imageView);
+    }
+
+    private void addChecklistToLayout(String text, boolean isChecked) {
+        LinearLayout checkLayout = new LinearLayout(this);
+        CheckBox checkBox = new CheckBox(this);
+        EditText editText = new EditText(this);
+
+        editText.setBackgroundColor(Color.TRANSPARENT);
+        checkBox.setChecked(isChecked);
+        editText.setText(text.length() != 0 ? text : "Text here!");
+
+        checkLayout.addView(checkBox);
+        checkLayout.addView(editText);
+        addContentLayout.addView(checkLayout);
+    }
+
+    private void addEditTextDefault() {
+        if (note.isEmpty()) {
+            addTextNote("");
+        } else {
+            for (Note item : note) {
+                switch (item.getType()) {
+                    case Note.TYPE_TEXT:
+                        addTextViewToLayout(item.getText());
+                        break;
+                    case Note.TYPE_IMAGE:
+                        addImageViewToLayout(item.getImageUri());
+                        break;
+                    case Note.TYPE_CHECKLIST:
+                        addChecklistToLayout(item.getCheckList(), item.isChecked());
+                        break;
+                }
             }
-        }, 100);
+        }
     }
 }
