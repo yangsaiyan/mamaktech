@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 
+import com.example.mamaktech_assignment.activities.MainActivity;
+
 public class SplashActivity extends Activity {
 
     private Handler handler = new Handler();

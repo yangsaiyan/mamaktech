@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">MamakTech_Assignment</string>
+    <string name="app_name">NoteDown</string>
+    <string name="notedown">NoteDown</string>
 </resources>
