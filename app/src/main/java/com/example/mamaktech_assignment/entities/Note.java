@@ -6,12 +6,16 @@ import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity(tableName = "notes")
 public class Note implements Serializable {
 
     @PrimaryKey(autoGenerate = true)
     private int id;
+    @ColumnInfo(name = "note_content_list")
+    private List<NoteContent> noteContentList = new ArrayList<>();
 
     @ColumnInfo(name = "title")
     private String title;
@@ -22,29 +26,19 @@ public class Note implements Serializable {
     @ColumnInfo(name = "subtitle")
     private String subtitle;
 
-    @ColumnInfo(name = "note_text")
-    private String noteText;
-
-    @ColumnInfo(name = "image_path")
-    private String imagePath;
-
-    @ColumnInfo(name = "web_link")
-    private String webLink;
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
     public String getTitle() {
         return title;
     }
 
     public void setTitle(String title) {
         this.title = title;
+    }
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getDateTime() {
@@ -63,28 +57,30 @@ public class Note implements Serializable {
         this.subtitle = subtitle;
     }
 
-    public String getNoteText() {
-        return noteText;
+    public void insertTextOrCheck(int type, String text) {
+        noteContentList.add(new NoteContent(type, text));
     }
 
-    public void setNoteText(String noteText) {
-        this.noteText = noteText;
+    public void insertCheck(boolean bool, String text) {
+        noteContentList.add(new NoteContent(bool, text));
     }
 
-    public String getImagePath() {
-        return imagePath;
+    public List<NoteContent> getNoteContentList() {
+        return noteContentList;
     }
 
-    public void setImagePath(String imagePath) {
-        this.imagePath = imagePath;
+    public void setNoteContentList(List<NoteContent> noteContentList) {
+        this.noteContentList = noteContentList;
     }
 
-    public String getWebLink() {
-        return webLink;
+
+    public NoteContent getNoteContent(NoteContent nc) {
+
+        return nc;
     }
 
-    public void setWebLink(String webLink) {
-        this.webLink = webLink;
+    public void setNoteContent(NoteContent nc) {
+
     }
 
     @NonNull

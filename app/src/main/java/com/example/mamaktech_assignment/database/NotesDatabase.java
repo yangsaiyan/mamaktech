@@ -5,12 +5,14 @@ import android.content.Context;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
+import androidx.room.TypeConverters;
 
 import com.example.mamaktech_assignment.dao.NoteDao;
 import com.example.mamaktech_assignment.entities.Note;
+import com.example.mamaktech_assignment.utils.JsonConverter;
 
-
-@Database(entities = Note.class, version = 1, exportSchema = false)
+@Database(entities = Note.class, version = 2, exportSchema = false)
+@TypeConverters({JsonConverter.class})
 public abstract class NotesDatabase extends RoomDatabase {
 
     private static NotesDatabase notesDatabase;
@@ -21,7 +23,8 @@ public abstract class NotesDatabase extends RoomDatabase {
                     context,
                     NotesDatabase.class,
                     "notes_db"
-            ).build();
+            ).fallbackToDestructiveMigration()
+                    .build();
         }
         return notesDatabase;
     }

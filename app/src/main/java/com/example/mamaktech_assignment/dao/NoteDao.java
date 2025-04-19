@@ -16,6 +16,10 @@ public interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY id DESC")
     List<Note> getAllNotes();
 
+    @Query("SELECT * FROM notes WHERE title LIKE '%' || :title || '%' ORDER BY id DESC")
+    List<Note> getQueriedNotes(String title);
+
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertNote(Note note);
 

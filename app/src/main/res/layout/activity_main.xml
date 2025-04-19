@@ -68,7 +68,7 @@
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/notesCecyclerView"
+        android:id="@+id/notesCyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:clipToOutline="false"
@@ -76,6 +76,7 @@
         android:paddingStart="0dp"
         android:paddingEnd="@dimen/_12sdp"
         android:paddingBottom="@dimen/_12sdp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/layoutSearch"
         tools:layout_editor_absoluteX="3dp" />
 
