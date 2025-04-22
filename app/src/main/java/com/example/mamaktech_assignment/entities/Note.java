@@ -57,7 +57,7 @@ public class Note implements Serializable {
         this.subtitle = subtitle;
     }
 
-    public void insertTextOrCheck(int type, String text) {
+    public void insertTextOrImage(int type, String text) {
         noteContentList.add(new NoteContent(type, text));
     }
 

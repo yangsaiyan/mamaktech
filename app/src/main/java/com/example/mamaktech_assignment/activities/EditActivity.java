@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -22,16 +23,22 @@ import com.example.mamaktech_assignment.entities.NoteContent;
 import com.google.android.material.slider.Slider;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
 
 public class EditActivity extends AppCompatActivity {
 
+    public static final int TYPE_TEXT = 0;
+    public static final int TYPE_CHECK = 1;
+    public static final int TYPE_IMAGE = 2;
+    private List<NoteContent> noteContentList = new ArrayList<>();
     private Button pickColorButton;
     private int mDefaultColor;
-    private LinearLayout layoutDrawTools, layoutTextTools;
+    private LinearLayout layoutDrawTools, layoutTextTools, contentContainer;
     private EditText inputNoteTitle, inputNoteSubtitle, inputNoteText;
     private TextView textDateTime;
     private ImageView addChecklistIcon, addImageIcon, drawToolsIcon, textToolsIcon, textSpeechIcon, displayColor;
@@ -52,6 +59,7 @@ public class EditActivity extends AppCompatActivity {
             }
         });
 
+        contentContainer = findViewById(R.id.contentContainer);
         layoutDrawTools = findViewById(R.id.layoutDrawTools);
         layoutTextTools = findViewById(R.id.layoutTextTools);
         inputNoteTitle = findViewById(R.id.inputNoteTitle);
@@ -119,6 +127,8 @@ public class EditActivity extends AppCompatActivity {
             isViewOrUpdate = true;
             alreadyAvailableNote = (Note) getIntent().getSerializableExtra("note");
             setViewOrUpdateNote();
+        } else {
+            addTextContent("");
         }
     }
 
@@ -127,23 +137,51 @@ public class EditActivity extends AppCompatActivity {
             inputNoteTitle.setText(alreadyAvailableNote.getTitle());
             inputNoteSubtitle.setText(alreadyAvailableNote.getSubtitle());
 
-            StringBuilder noteText = new StringBuilder();
+            noteContentList.clear();
+            contentContainer.removeAllViews();
+
             if (alreadyAvailableNote.getNoteContentList() != null && !alreadyAvailableNote.getNoteContentList().isEmpty()) {
+                Log.d("TEXT_DISPLAY", "Saved size " + alreadyAvailableNote.getNoteContentList().size());
                 for (NoteContent content : alreadyAvailableNote.getNoteContentList()) {
+                    Log.d("TEXT_DISPLAY", "Saved " + content.typeCheck());
                     if (content.getText() != null) {
-                        noteText.append(content.getText()).append("\n");
-                    } else if (content.getCheckText() != null) {
-                        noteText.append(content.isCheckBool() ? "☑ " : "☐ ")
-                                .append(content.getCheckText()).append("\n");
-                    } else if (content.getImagePath() != null) {
-                        noteText.append("[Image: ").append(content.getImagePath()).append("]\n");
+                        addTextContent(content.getText());
                     }
+//                     else if (content.getCheckText() != null) {
+//                        noteText.append(content.isCheckBool() ? "☑ " : "☐ ")
+//                                .append(content.getCheckText()).append("\n");
+//                    } else if (content.getImagePath() != null) {
+//                        noteText.append("[Image: ").append(content.getImagePath()).append("]\n");
+//                    }
                 }
             }
-            inputNoteText.setText(noteText.toString().trim());
+//            inputNoteText.setText(noteText.toString().trim());
 
             textDateTime.setText(alreadyAvailableNote.getDateTime());
         }
+    }
+
+    private void addTextContent(String text) {
+        final NoteContent noteContent = new NoteContent(TYPE_TEXT, text);
+        noteContentList.add(noteContent);
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);
+        EditText editText = noteTextView.findViewById(R.id.inputNote);
+        editText.setText(text);
+        editText.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                noteContent.setText(s.toString());
+                Log.d("TEXT_UPDATE", "Updated text: " + s.toString());
+            }
+        });
+        contentContainer.addView(noteTextView);
     }
 
     private void saveNote() {
@@ -171,10 +209,16 @@ public class EditActivity extends AppCompatActivity {
             note.getNoteContentList().clear();
         }
 
-        if (!inputNoteText.getText().toString().trim().isEmpty()) {
-            note.insertTextOrCheck(NoteContent.TYPE_TEXT, inputNoteText.getText().toString());
+        Log.d("SAVE_NOTE", "noteContentList: " + noteContentList.size());
+        for(NoteContent content: noteContentList){
+
+            if (content.typeCheck() == NoteContent.TYPE_TEXT) {
+                Log.d("SAVE_NOTE", "Saved " + content.getText());
+                note.insertTextOrImage(NoteContent.TYPE_TEXT, content.getText());
+            }
         }
 
+        Log.d("SAVE_NOTE", "Note size " + note.getNoteContentList().size());
         @SuppressLint("StaticFieldLeak")
         class SaveNoteTask extends AsyncTask<Void, Void, Void> {
             @Override
