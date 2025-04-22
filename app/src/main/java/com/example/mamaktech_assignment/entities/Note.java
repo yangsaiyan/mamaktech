@@ -1,5 +1,7 @@
 package com.example.mamaktech_assignment.entities;
 
+import android.net.Uri;
+
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
@@ -57,12 +59,16 @@ public class Note implements Serializable {
         this.subtitle = subtitle;
     }
 
-    public void insertTextOrImage(int type, String text) {
-        noteContentList.add(new NoteContent(type, text));
+    public void insertText(String text) {
+        noteContentList.add(new NoteContent(NoteContent.TYPE_TEXT, text));
     }
 
     public void insertCheck(boolean bool, String text) {
         noteContentList.add(new NoteContent(bool, text));
+    }
+
+    public void insertImage(String imagepath) {
+        noteContentList.add(new NoteContent(NoteContent.TYPE_IMAGE, imagepath));
     }
 
     public List<NoteContent> getNoteContentList() {

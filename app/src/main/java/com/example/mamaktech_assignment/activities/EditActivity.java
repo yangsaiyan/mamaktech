@@ -4,8 +4,11 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -82,6 +85,24 @@ public class EditActivity extends AppCompatActivity {
             }
         });
 
+        addImageIcon.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent;
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT){
+                    intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                }else{
+                    intent = new Intent(Intent.ACTION_GET_CONTENT);
+                }
+                intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                intent.setType("image/*");
+                startActivityForResult(intent, 1);
+            }
+        });
+
         textToolsIcon.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -141,6 +162,16 @@ public class EditActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 1 && resultCode == RESULT_OK && data != null) {
+            Uri selectedImage = data.getData();
+            addImage(selectedImage);
+        }
+    }
+
     private void setViewOrUpdateNote() {
         if (alreadyAvailableNote != null) {
             inputNoteTitle.setText(alreadyAvailableNote.getTitle());
@@ -158,20 +189,17 @@ public class EditActivity extends AppCompatActivity {
                         addTextContent(content.getText());
                     }else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
                         addChecklistContent(content.isCheckBool(), content.getCheckText());
+                    }else if (content.typeCheck() == NoteContent.TYPE_IMAGE && content.getImagePath() != null) {
+                        addImage(Uri.parse(content.getImagePath()));
                     }
-                     //else if (content.getImagePath() != null) {
-//                        noteText.append("[Image: ").append(content.getImagePath()).append("]\n");
-//                    }
                 }
             }
-//            inputNoteText.setText(noteText.toString().trim());
-
             textDateTime.setText(alreadyAvailableNote.getDateTime());
         }
     }
 
     private void addTextContent(String text) {
-        final NoteContent noteContent = new NoteContent(TYPE_TEXT, text);
+        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_TEXT, text);
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -230,6 +258,18 @@ public class EditActivity extends AppCompatActivity {
         contentContainer.addView(noteTextView);
     }
 
+    private void addImage(Uri imagePath) {
+        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_IMAGE, String.valueOf(imagePath));
+        noteContentList.add(noteContent);
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View noteTextView = inflater.inflate(R.layout.note_image, contentContainer, false);
+        ImageView imageView = noteTextView.findViewById(R.id.inputImage);
+        imageView.setImageURI(imagePath);
+
+        contentContainer.addView(noteTextView);
+    }
+
     private void saveNote() {
         if (inputNoteTitle.getText().toString().trim().isEmpty()) {
             Toast.makeText(this, "Note title can't be empty!", Toast.LENGTH_SHORT).show();
@@ -259,9 +299,11 @@ public class EditActivity extends AppCompatActivity {
         for(NoteContent content: noteContentList){
             Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
             if (content.typeCheck() == NoteContent.TYPE_TEXT) {
-                note.insertTextOrImage(NoteContent.TYPE_TEXT, content.getText());
+                note.insertText(content.getText());
             } else if (content.typeCheck() == NoteContent.TYPE_CHECK) {
                 note.insertCheck(content.isCheckBool(), content.getCheckText());
+            } else if(content.typeCheck() == NoteContent.TYPE_IMAGE) {
+                note.insertImage(String.valueOf(content.getImagePath()));
             }
         }
 
