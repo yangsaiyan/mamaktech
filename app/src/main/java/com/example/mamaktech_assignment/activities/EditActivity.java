@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -72,6 +73,14 @@ public class EditActivity extends AppCompatActivity {
         textToolsIcon = findViewById(R.id.textTools);
         textSpeechIcon = findViewById(R.id.textSpeech);
         displayColor = findViewById(R.id.displayColor);
+        addChecklistIcon = findViewById(R.id.addChecklist);
+
+        addChecklistIcon.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                addChecklistContent(false, "");
+            }
+        });
 
         textToolsIcon.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -140,17 +149,17 @@ public class EditActivity extends AppCompatActivity {
             noteContentList.clear();
             contentContainer.removeAllViews();
 
+            Log.d("DISPLAY", "Current size before display: " + alreadyAvailableNote.getNoteContentList().size());
+
             if (alreadyAvailableNote.getNoteContentList() != null && !alreadyAvailableNote.getNoteContentList().isEmpty()) {
-                Log.d("TEXT_DISPLAY", "Saved size " + alreadyAvailableNote.getNoteContentList().size());
                 for (NoteContent content : alreadyAvailableNote.getNoteContentList()) {
-                    Log.d("TEXT_DISPLAY", "Saved " + content.typeCheck());
-                    if (content.getText() != null) {
+                    Log.d("DISPLAY", "Current: " + content.getText());
+                    if (content.typeCheck() == NoteContent.TYPE_TEXT && content.getText() != null) {
                         addTextContent(content.getText());
+                    }else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
+                        addChecklistContent(content.isCheckBool(), content.getCheckText());
                     }
-//                     else if (content.getCheckText() != null) {
-//                        noteText.append(content.isCheckBool() ? "☑ " : "☐ ")
-//                                .append(content.getCheckText()).append("\n");
-//                    } else if (content.getImagePath() != null) {
+                     //else if (content.getImagePath() != null) {
 //                        noteText.append("[Image: ").append(content.getImagePath()).append("]\n");
 //                    }
                 }
@@ -164,6 +173,7 @@ public class EditActivity extends AppCompatActivity {
     private void addTextContent(String text) {
         final NoteContent noteContent = new NoteContent(TYPE_TEXT, text);
         noteContentList.add(noteContent);
+
         LayoutInflater inflater = LayoutInflater.from(this);
         View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);
         EditText editText = noteTextView.findViewById(R.id.inputNote);
@@ -181,6 +191,42 @@ public class EditActivity extends AppCompatActivity {
                 Log.d("TEXT_UPDATE", "Updated text: " + s.toString());
             }
         });
+        contentContainer.addView(noteTextView);
+    }
+
+    private void addChecklistContent(Boolean checkStatus, String text) {
+        final NoteContent noteContent = new NoteContent(checkStatus, text);
+        noteContentList.add(noteContent);
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View noteTextView = inflater.inflate(R.layout.note_checklist, contentContainer, false);
+        LinearLayout lay = noteTextView.findViewById(R.id.inputCheckLayout);
+        CheckBox checkBox = noteTextView.findViewById(R.id.editCheckBox);
+        EditText editText = noteTextView.findViewById(R.id.editCheckText);
+
+        checkBox.setChecked(checkStatus);
+        editText.setText(text);
+        editText.setBackground(null);
+
+        editText.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                noteContent.setCheckText(s.toString());
+                Log.d("TEXT_UPDATE", "Updated text: " + s.toString());
+            }
+        });
+
+        checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            noteContent.setCheckBool(isChecked);
+            Log.d("CHECK_UPDATE", "Checked: " + isChecked);
+        });
+
         contentContainer.addView(noteTextView);
     }
 
@@ -211,10 +257,11 @@ public class EditActivity extends AppCompatActivity {
 
         Log.d("SAVE_NOTE", "noteContentList: " + noteContentList.size());
         for(NoteContent content: noteContentList){
-
+            Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
             if (content.typeCheck() == NoteContent.TYPE_TEXT) {
-                Log.d("SAVE_NOTE", "Saved " + content.getText());
                 note.insertTextOrImage(NoteContent.TYPE_TEXT, content.getText());
+            } else if (content.typeCheck() == NoteContent.TYPE_CHECK) {
+                note.insertCheck(content.isCheckBool(), content.getCheckText());
             }
         }
 
