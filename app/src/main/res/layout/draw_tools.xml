@@ -13,7 +13,7 @@
         android:gravity="center">
 
         <ImageView
-            android:id="@+id/addChecklist"
+            android:id="@+id/drawStroke1"
             android:layout_width="10dp"
             android:layout_height="10dp"
             android:layout_weight="1"
@@ -21,7 +21,7 @@
             android:src="@drawable/filled_circle_icon" />
 
         <ImageView
-            android:id="@+id/addImage"
+            android:id="@+id/drawStroke2"
             android:layout_width="14dp"
             android:layout_height="14dp"
             android:layout_marginStart="@dimen/_8sdp"
@@ -30,7 +30,7 @@
             android:src="@drawable/filled_circle_icon" />
 
         <ImageView
-            android:id="@+id/drawTools"
+            android:id="@+id/drawStroke3"
             android:layout_width="18dp"
             android:layout_height="18dp"
             android:layout_marginStart="@dimen/_8sdp"
@@ -39,7 +39,7 @@
             android:src="@drawable/filled_circle_icon" />
 
         <ImageView
-            android:id="@+id/textTools"
+            android:id="@+id/drawStroke4"
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:layout_marginStart="@dimen/_8sdp"
@@ -48,7 +48,7 @@
             android:src="@drawable/filled_circle_icon" />
 
         <ImageView
-            android:id="@+id/textSpeech"
+            android:id="@+id/drawStroke5"
             android:layout_width="26dp"
             android:layout_height="26dp"
             android:layout_marginStart="@dimen/_8sdp"

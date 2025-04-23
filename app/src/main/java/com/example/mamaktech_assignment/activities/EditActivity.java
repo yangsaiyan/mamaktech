@@ -1,6 +1,9 @@
 package com.example.mamaktech_assignment.activities;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
+import android.Manifest;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -8,7 +11,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,6 +24,7 @@ import android.widget.Toast;
 
 import com.example.mamaktech_assignment.R;
 import com.example.mamaktech_assignment.database.NotesDatabase;
+import com.example.mamaktech_assignment.entities.Board;
 import com.example.mamaktech_assignment.entities.Note;
 import com.example.mamaktech_assignment.entities.NoteContent;
 import com.google.android.material.slider.Slider;
@@ -42,18 +45,26 @@ public class EditActivity extends AppCompatActivity {
     private List<NoteContent> noteContentList = new ArrayList<>();
     private Button pickColorButton;
     private int mDefaultColor;
-    private LinearLayout layoutDrawTools, layoutTextTools, contentContainer;
+    private LinearLayout layoutDrawTools, layoutTextTools, layoutDrawBoard, contentContainer;
     private EditText inputNoteTitle, inputNoteSubtitle, inputNoteText;
     private TextView textDateTime;
-    private ImageView addChecklistIcon, addImageIcon, drawToolsIcon, textToolsIcon, textSpeechIcon, displayColor;
+    private ImageView addChecklistIcon, addImageIcon, drawToolsIcon, textToolsIcon, textSpeechIcon,
+            displayColor, drawStroke1, drawStroke2, drawStroke3, drawStroke4, drawStroke5;
     private Slider colorSlider;
     private Note alreadyAvailableNote;
     private boolean isViewOrUpdate = false;
+    private Board drawBoard;
+    private Button saveDrawBoardButton, clearDrawBoardButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit);
+
+        //Request permission
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
+                1);
 
         ImageView imageBack = findViewById(R.id.imageBack);
         imageBack.setOnClickListener(new View.OnClickListener() {
@@ -66,6 +77,7 @@ public class EditActivity extends AppCompatActivity {
         contentContainer = findViewById(R.id.contentContainer);
         layoutDrawTools = findViewById(R.id.layoutDrawTools);
         layoutTextTools = findViewById(R.id.layoutTextTools);
+        layoutDrawBoard = findViewById(R.id.layoutDrawBoard);
         inputNoteTitle = findViewById(R.id.inputNoteTitle);
         inputNoteSubtitle = findViewById(R.id.inputNoteSubtitle);
         inputNoteText = findViewById(R.id.inputNote);
@@ -77,7 +89,16 @@ public class EditActivity extends AppCompatActivity {
         textSpeechIcon = findViewById(R.id.textSpeech);
         displayColor = findViewById(R.id.displayColor);
         addChecklistIcon = findViewById(R.id.addChecklist);
+        drawBoard = findViewById(R.id.drawBoard);
+        saveDrawBoardButton = findViewById(R.id.drawBoardSave);
+        clearDrawBoardButton = findViewById(R.id.drawBoardClear);
+        drawStroke1 = findViewById(R.id.drawStroke1);
+        drawStroke2 = findViewById(R.id.drawStroke2);
+        drawStroke3 = findViewById(R.id.drawStroke3);
+        drawStroke4 = findViewById(R.id.drawStroke4);
+        drawStroke5 = findViewById(R.id.drawStroke5);
 
+        changeStrokeSizeListeners();
         addChecklistIcon.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -120,9 +141,12 @@ public class EditActivity extends AppCompatActivity {
             public void onClick(View view) {
 
                 if (layoutDrawTools.getVisibility() == View.VISIBLE) {
+
                     layoutDrawTools.setVisibility(View.GONE);
+                    layoutDrawBoard.setVisibility(View.GONE);
                 } else {
                     layoutDrawTools.setVisibility(View.VISIBLE);
+                    layoutDrawBoard.setVisibility(View.VISIBLE);
                 }
             }
         });
@@ -153,6 +177,26 @@ public class EditActivity extends AppCompatActivity {
                     }
                 });
 
+        saveDrawBoardButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+
+                        final Uri drawBoardImage = drawBoard.saveToImage(String.valueOf(Math.random() * 1000000001) + "NoteDown");
+                        addImage(drawBoardImage);
+                    }
+                });
+
+        clearDrawBoardButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        drawBoard.clearDrawing();
+                    }
+                });
+
         if (getIntent().getBooleanExtra("isViewOrUpdate", false)) {
             isViewOrUpdate = true;
             alreadyAvailableNote = (Note) getIntent().getSerializableExtra("note");
@@ -170,6 +214,54 @@ public class EditActivity extends AppCompatActivity {
             Uri selectedImage = data.getData();
             addImage(selectedImage);
         }
+    }
+
+    private void changeStrokeSizeListeners() {
+
+        drawStroke1.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        drawBoard.setStrokeWidth(5f);
+                    }
+                });
+
+        drawStroke2.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        drawBoard.setStrokeWidth(8f);
+                    }
+                });
+
+        drawStroke3.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        drawBoard.setStrokeWidth(12f);
+                    }
+                });
+
+        drawStroke4.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        drawBoard.setStrokeWidth(15f);
+                    }
+                });
+
+        drawStroke5.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        drawBoard.setStrokeWidth(20f);
+                    }
+                });
     }
 
     private void setViewOrUpdateNote() {
@@ -266,6 +358,9 @@ public class EditActivity extends AppCompatActivity {
         View noteTextView = inflater.inflate(R.layout.note_image, contentContainer, false);
         ImageView imageView = noteTextView.findViewById(R.id.inputImage);
         imageView.setImageURI(imagePath);
+        drawBoard.clearDrawing();
+        layoutDrawTools.setVisibility(View.GONE);
+        layoutDrawBoard.setVisibility(View.GONE);
 
         contentContainer.addView(noteTextView);
     }
@@ -335,7 +430,6 @@ public class EditActivity extends AppCompatActivity {
                 finish();
             }
         }
-
         new SaveNoteTask().execute();
     }
 
@@ -365,12 +459,11 @@ public class EditActivity extends AppCompatActivity {
                     finish();
                 }
             }
-
             new DeleteNoteTask().execute();
         }
     }
 
-    public void openColorPickerDialogue() {
+    private void openColorPickerDialogue() {
 
         final AmbilWarnaDialog colorPickerDialogue = new AmbilWarnaDialog(this, mDefaultColor,
                 new AmbilWarnaDialog.OnAmbilWarnaListener() {
@@ -384,6 +477,8 @@ public class EditActivity extends AppCompatActivity {
 
                         mDefaultColor = color;
                         displayColor.setColorFilter(mDefaultColor);
+                        Log.d("COLOR_VALUE", String.valueOf(color));
+                        drawBoard.setColor(mDefaultColor);
                     }
                 });
         colorPickerDialogue.show();
