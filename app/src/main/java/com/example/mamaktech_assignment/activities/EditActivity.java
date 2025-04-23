@@ -6,14 +6,23 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.Spannable;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
+import android.text.style.UnderlineSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -29,11 +38,16 @@ import com.example.mamaktech_assignment.entities.Note;
 import com.example.mamaktech_assignment.entities.NoteContent;
 import com.google.android.material.slider.Slider;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
 
@@ -49,7 +63,8 @@ public class EditActivity extends AppCompatActivity {
     private EditText inputNoteTitle, inputNoteSubtitle, inputNoteText;
     private TextView textDateTime;
     private ImageView addChecklistIcon, addImageIcon, drawToolsIcon, textToolsIcon, textSpeechIcon,
-            displayColor, drawStroke1, drawStroke2, drawStroke3, drawStroke4, drawStroke5;
+            displayColor, drawStroke1, drawStroke2, drawStroke3, drawStroke4, drawStroke5, textBold,
+            textItalic, textUnderline, textFontInc, textFontDcr;
     private Slider colorSlider;
     private Note alreadyAvailableNote;
     private boolean isViewOrUpdate = false;
@@ -97,6 +112,46 @@ public class EditActivity extends AppCompatActivity {
         drawStroke3 = findViewById(R.id.drawStroke3);
         drawStroke4 = findViewById(R.id.drawStroke4);
         drawStroke5 = findViewById(R.id.drawStroke5);
+        textBold = findViewById(R.id.textBold);
+        textItalic = findViewById(R.id.textItalic);
+        textUnderline = findViewById(R.id.textUnderline);
+        textFontInc = findViewById(R.id.textFontIncrease);
+        textFontDcr = findViewById(R.id.textFontDecrease);
+
+        textBold.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                textActions("bold");
+            }
+        });
+
+        textItalic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                textActions("italic");
+            }
+        });
+
+        textUnderline.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                textActions("underline");
+            }
+        });
+
+        textFontInc.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                textActions("fontInc");
+            }
+        });
+
+        textFontDcr.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                textActions("fontDcr");
+            }
+        });
 
         changeStrokeSizeListeners();
         addChecklistIcon.setOnClickListener(new View.OnClickListener() {
@@ -202,7 +257,7 @@ public class EditActivity extends AppCompatActivity {
             alreadyAvailableNote = (Note) getIntent().getSerializableExtra("note");
             setViewOrUpdateNote();
         } else {
-            addTextContent("");
+            addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
         }
     }
 
@@ -278,7 +333,7 @@ public class EditActivity extends AppCompatActivity {
                 for (NoteContent content : alreadyAvailableNote.getNoteContentList()) {
                     Log.d("DISPLAY", "Current: " + content.getText());
                     if (content.typeCheck() == NoteContent.TYPE_TEXT && content.getText() != null) {
-                        addTextContent(content.getText());
+                        addTextContent(content);
                     }else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
                         addChecklistContent(content.isCheckBool(), content.getCheckText());
                     }else if (content.typeCheck() == NoteContent.TYPE_IMAGE && content.getImagePath() != null) {
@@ -290,14 +345,22 @@ public class EditActivity extends AppCompatActivity {
         }
     }
 
-    private void addTextContent(String text) {
-        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_TEXT, text);
+    private void addTextContent(NoteContent content) {
+        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_TEXT, content.getText(), "");
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
-        View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);
-        EditText editText = noteTextView.findViewById(R.id.inputNote);
-        editText.setText(text);
+        View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);;
+        EditText editText  = noteTextView.findViewById(R.id.inputNote);
+
+        Log.d("SHOW_FORMATTING_DATA_LENGTH", !Objects.equals(content.getTextFormatting(), "") ? content.getTextFormatting() : String.valueOf(content.getTextFormatting().length()));
+
+        if(!Objects.equals(content.getTextFormatting(), "") && content.getTextFormatting().length() > 0) {
+            restoreTextFormatting(editText, content);
+        } else {
+            editText.setText(content.getText());
+        }
+
         editText.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -351,7 +414,7 @@ public class EditActivity extends AppCompatActivity {
     }
 
     private void addImage(Uri imagePath) {
-        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_IMAGE, String.valueOf(imagePath));
+        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_IMAGE, String.valueOf(imagePath), "");
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -363,6 +426,153 @@ public class EditActivity extends AppCompatActivity {
         layoutDrawBoard.setVisibility(View.GONE);
 
         contentContainer.addView(noteTextView);
+    }
+
+    private void findAllEditTexts(ViewGroup viewGroup, ArrayList<EditText> editTexts) {
+        int childCount = viewGroup.getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            View child = viewGroup.getChildAt(i);
+
+            if (child instanceof EditText) {
+                editTexts.add((EditText) child);
+            } else if (child instanceof ViewGroup) {
+                findAllEditTexts((ViewGroup) child, editTexts);
+            }
+        }
+    }
+
+    private void textActions(String type) {
+        if (contentContainer == null) {
+            Log.e("TextActions", "contentContainer is null");
+            return;
+        }
+
+        ArrayList<EditText> allEditTexts = new ArrayList<>();
+        findAllEditTexts(contentContainer, allEditTexts);
+
+        for (EditText editText : allEditTexts) {
+            if (editText.hasFocus()) {
+                Editable editable = editText.getText();
+                int selStart = editText.getSelectionStart();
+                int selEnd = editText.getSelectionEnd();
+
+                if (selStart != selEnd) {
+                    if (type.equals("bold")) {
+                        editable.setSpan(new StyleSpan(Typeface.BOLD),
+                                selStart, selEnd,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        return;
+                    } else if (type.equals("italic")) {
+                        editable.setSpan(new StyleSpan(Typeface.ITALIC),
+                                selStart, selEnd,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        return;
+                    } else if (type.equals("underline")) {
+                        editable.setSpan(new UnderlineSpan(),
+                                selStart, selEnd,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        return;
+                    } else if (type.equals("fontInc")) {
+                        editable.setSpan(new RelativeSizeSpan(1.25f),
+                                selStart, selEnd,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        return;
+                    } else if (type.equals("fontDcr")) {
+                        editable.setSpan(new RelativeSizeSpan(0.8f),
+                                selStart, selEnd,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    private String saveTextFormatting(EditText editText) {
+        Editable text = editText.getText();
+        JSONArray formattingArray = new JSONArray();
+
+        StyleSpan[] styleSpans = text.getSpans(0, text.length(), StyleSpan.class);
+        for (StyleSpan span : styleSpans) {
+            try {
+                JSONObject spanObj = new JSONObject();
+                spanObj.put("start", text.getSpanStart(span));
+                spanObj.put("end", text.getSpanEnd(span));
+                spanObj.put("isBold", span.getStyle() == Typeface.BOLD);
+                spanObj.put("isItalic", span.getStyle() == Typeface.ITALIC);
+                formattingArray.put(spanObj);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+
+        UnderlineSpan[] underlineSpans = text.getSpans(0, text.length(), UnderlineSpan.class);
+        for (UnderlineSpan span : underlineSpans) {
+            try {
+                JSONObject spanObj = new JSONObject();
+                spanObj.put("start", text.getSpanStart(span));
+                spanObj.put("end", text.getSpanEnd(span));
+                spanObj.put("isUnderline", true);
+                formattingArray.put(spanObj);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+
+        RelativeSizeSpan[] sizeSpans = text.getSpans(0, text.length(), RelativeSizeSpan.class);
+        for (RelativeSizeSpan span : sizeSpans) {
+            try {
+                JSONObject spanObj = new JSONObject();
+                spanObj.put("start", text.getSpanStart(span));
+                spanObj.put("end", text.getSpanEnd(span));
+                spanObj.put("sizeRatio", span.getSizeChange());
+                formattingArray.put(spanObj);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        Log.d("SHOW_JSON", formattingArray.toString());
+        return formattingArray.toString();
+    }
+
+    private void restoreTextFormatting(EditText editText, NoteContent content) {
+        String formattingData = content.getTextFormatting();
+        Log.d("SHOW_FORMATTING_DATA", "EXITIING");
+        if (formattingData == null || formattingData.isEmpty()) {
+            return;  // Exit if no formatting data
+        }
+        Log.d("SHOW_FORMATTING_DATA", formattingData);
+
+        editText.setText(content.getText());
+        Editable editable = editText.getText();
+
+        try {
+            JSONArray formattingArray = new JSONArray(formattingData);
+            for (int i = 0; i < formattingArray.length(); i++) {
+                JSONObject spanObj = formattingArray.getJSONObject(i);
+                int start = spanObj.getInt("start");
+                int end = spanObj.getInt("end");
+
+                if (spanObj.has("isBold") && spanObj.getBoolean("isBold")) {
+                    editable.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+
+                if (spanObj.has("isItalic") && spanObj.getBoolean("isItalic")) {
+                    editable.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+
+                if (spanObj.has("isUnderline") && spanObj.getBoolean("isUnderline")) {
+                    editable.setSpan(new UnderlineSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+
+                if (spanObj.has("sizeRatio")) {
+                    float sizeRatio = (float) spanObj.getDouble("sizeRatio");
+                    editable.setSpan(new RelativeSizeSpan(sizeRatio), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     private void saveNote() {
@@ -390,17 +600,41 @@ public class EditActivity extends AppCompatActivity {
             note.getNoteContentList().clear();
         }
 
-        Log.d("SAVE_NOTE", "noteContentList: " + noteContentList.size());
-        for(NoteContent content: noteContentList){
+        ArrayList<EditText> allEditTexts = new ArrayList<>();
+        findAllEditTexts(contentContainer, allEditTexts);
+
+        for(int i = 0; i < noteContentList.size(); i++) {
+            NoteContent content = noteContentList.get(i);
             Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
+
             if (content.typeCheck() == NoteContent.TYPE_TEXT) {
-                note.insertText(content.getText());
+                String textFormatting = "";
+                for (EditText editText : allEditTexts) {
+
+                    if (editText.getText().toString().equals(content.getText())) {
+                        textFormatting = saveTextFormatting(editText);
+                    }
+                }
+                note.insertText(content.getText(), textFormatting);
+
             } else if (content.typeCheck() == NoteContent.TYPE_CHECK) {
                 note.insertCheck(content.isCheckBool(), content.getCheckText());
             } else if(content.typeCheck() == NoteContent.TYPE_IMAGE) {
                 note.insertImage(String.valueOf(content.getImagePath()));
             }
         }
+
+        Log.d("SAVE_NOTE", "noteContentList: " + noteContentList.size());
+//        for(NoteContent content: noteContentList){
+//            Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
+//            if (content.typeCheck() == NoteContent.TYPE_TEXT) {
+//                note.insertText(content.getText());
+//            } else if (content.typeCheck() == NoteContent.TYPE_CHECK) {
+//                note.insertCheck(content.isCheckBool(), content.getCheckText());
+//            } else if(content.typeCheck() == NoteContent.TYPE_IMAGE) {
+//                note.insertImage(String.valueOf(content.getImagePath()));
+//            }
+//        }
 
         Log.d("SAVE_NOTE", "Note size " + note.getNoteContentList().size());
         @SuppressLint("StaticFieldLeak")

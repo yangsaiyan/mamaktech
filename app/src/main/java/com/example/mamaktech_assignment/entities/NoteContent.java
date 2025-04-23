@@ -12,12 +12,15 @@ public class NoteContent implements Serializable{
     private boolean checkBool;
     private String checkText;
     private String imagePath;
+    private String textFormatting;
 
     public NoteContent() {
     }
-    public NoteContent(int type ,String text){
+
+    public NoteContent(int type , String text, String textFormatting){
         if(type == TYPE_TEXT){
             this.text = text;
+            this.textFormatting = textFormatting;
         } else if(type == TYPE_IMAGE){
             this.imagePath = text;
         }
@@ -62,5 +65,13 @@ public class NoteContent implements Serializable{
 
     public void setImagePath(String imagePath) {
         this.imagePath = imagePath;
+    }
+
+    public String getTextFormatting() {
+        return textFormatting;
+    }
+
+    public void setTextFormatting(String textFormatting) {
+        this.textFormatting = textFormatting;
     }
 }

@@ -59,8 +59,8 @@ public class Note implements Serializable {
         this.subtitle = subtitle;
     }
 
-    public void insertText(String text) {
-        noteContentList.add(new NoteContent(NoteContent.TYPE_TEXT, text));
+    public void insertText(String text, String textFormatting) {
+        noteContentList.add(new NoteContent(NoteContent.TYPE_TEXT, text, textFormatting));
     }
 
     public void insertCheck(boolean bool, String text) {
@@ -68,7 +68,7 @@ public class Note implements Serializable {
     }
 
     public void insertImage(String imagepath) {
-        noteContentList.add(new NoteContent(NoteContent.TYPE_IMAGE, imagepath));
+        noteContentList.add(new NoteContent(NoteContent.TYPE_IMAGE, imagepath, ""));
     }
 
     public List<NoteContent> getNoteContentList() {
