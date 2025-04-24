@@ -32,6 +32,19 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/colorIcons" />
 
+            <ImageButton
+                android:id="@+id/menu"
+                android:layout_width="@dimen/_20sdp"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:src="@drawable/menu"
+                app:layout_constraintBottom_toBottomOf="@+id/imageBack"
+                app:layout_constraintEnd_toStartOf="@+id/imageSave"
+                app:layout_constraintHorizontal_bias="0.943"
+                app:layout_constraintStart_toEndOf="@+id/imageBack"
+                app:layout_constraintTop_toTopOf="@+id/imageBack" />
+
+
             <ImageView
                 android:id="@+id/imageSave"
                 android:layout_width="@dimen/_20sdp"

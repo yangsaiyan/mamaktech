@@ -21,6 +21,11 @@ import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.widget.ImageButton;
+import android.widget.PopupMenu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -36,6 +41,7 @@ import com.example.mamaktech_assignment.database.NotesDatabase;
 import com.example.mamaktech_assignment.entities.Board;
 import com.example.mamaktech_assignment.entities.Note;
 import com.example.mamaktech_assignment.entities.NoteContent;
+import com.example.mamaktech_assignment.utils.PDFGenerator;
 import com.google.android.material.slider.Slider;
 
 import org.json.JSONArray;
@@ -53,9 +59,6 @@ import yuku.ambilwarna.AmbilWarnaDialog;
 
 public class EditActivity extends AppCompatActivity {
 
-    public static final int TYPE_TEXT = 0;
-    public static final int TYPE_CHECK = 1;
-    public static final int TYPE_IMAGE = 2;
     private List<NoteContent> noteContentList = new ArrayList<>();
     private Button pickColorButton;
     private int mDefaultColor;
@@ -70,6 +73,8 @@ public class EditActivity extends AppCompatActivity {
     private boolean isViewOrUpdate = false;
     private Board drawBoard;
     private Button saveDrawBoardButton, clearDrawBoardButton;
+    private ImageButton menuButton;
+    private boolean isLoading = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +122,14 @@ public class EditActivity extends AppCompatActivity {
         textUnderline = findViewById(R.id.textUnderline);
         textFontInc = findViewById(R.id.textFontIncrease);
         textFontDcr = findViewById(R.id.textFontDecrease);
+        menuButton = findViewById(R.id.menu);
+
+        menuButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showPopupMenu(view);
+            }
+        });
 
         textBold.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -256,9 +269,43 @@ public class EditActivity extends AppCompatActivity {
             isViewOrUpdate = true;
             alreadyAvailableNote = (Note) getIntent().getSerializableExtra("note");
             setViewOrUpdateNote();
+            isLoading = false;
         } else {
             addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
+            isLoading = false;
         }
+    }
+
+    public void showPopupMenu(View view) {
+        PopupMenu popupMenu = new PopupMenu(this, view);
+        MenuInflater inflater = popupMenu.getMenuInflater();
+        inflater.inflate(R.menu.overflow_menu, popupMenu.getMenu());
+
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                int id = item.getItemId();
+
+                if (id == R.id.share) {
+                    Toast.makeText(getApplicationContext(), "Share clicked", Toast.LENGTH_SHORT).show();
+                    return true;
+                } else if (id == R.id.pin) {
+                    Toast.makeText(getApplicationContext(), "Pin clicked", Toast.LENGTH_SHORT).show();
+                    return true;
+                } else if (id == R.id.convertPdf) {
+                    PDFGenerator.generatePdfFromNotes(EditActivity.this, alreadyAvailableNote, "convertPDF");
+                    return true;
+                } else if (id == R.id.delete) {
+                    Log.d("DELETE_NOTE", "Menu clicked");
+                    deleteNote();
+                    return true;
+                }
+
+                return false;
+            }
+        });
+
+        popupMenu.show();
     }
 
     @Override
@@ -345,6 +392,29 @@ public class EditActivity extends AppCompatActivity {
         }
     }
 
+    private void checkNoteContentListLastItem() {
+
+        if(isLoading) return;
+
+        if(noteContentList.get(noteContentList.size() - 1).typeCheck() != NoteContent.TYPE_TEXT){
+            addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
+        }
+    }
+
+    private void checkNoteContentListpreviousItem() {
+
+        if(isLoading) return;
+
+        ArrayList<EditText> allEditTexts = new ArrayList<>();
+        findAllEditTexts(contentContainer, allEditTexts);
+        if(allEditTexts.get(allEditTexts.size() - 1).getText().toString().trim().isEmpty()
+                && noteContentList.get(noteContentList.size() - 1 ).getText().equals("")){
+            allEditTexts.remove(allEditTexts.size() - 1);
+            noteContentList.remove(noteContentList.size() - 1);
+            contentContainer.removeViewAt(contentContainer.getChildCount() - 1);
+        }
+    }
+
     private void addTextContent(NoteContent content) {
         final NoteContent noteContent = new NoteContent(NoteContent.TYPE_TEXT, content.getText(), "");
         noteContentList.add(noteContent);
@@ -379,6 +449,7 @@ public class EditActivity extends AppCompatActivity {
 
     private void addChecklistContent(Boolean checkStatus, String text) {
         final NoteContent noteContent = new NoteContent(checkStatus, text);
+        checkNoteContentListpreviousItem();
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -411,10 +482,13 @@ public class EditActivity extends AppCompatActivity {
         });
 
         contentContainer.addView(noteTextView);
+
+        checkNoteContentListLastItem();
     }
 
     private void addImage(Uri imagePath) {
         final NoteContent noteContent = new NoteContent(NoteContent.TYPE_IMAGE, String.valueOf(imagePath), "");
+        checkNoteContentListpreviousItem();
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -424,8 +498,9 @@ public class EditActivity extends AppCompatActivity {
         drawBoard.clearDrawing();
         layoutDrawTools.setVisibility(View.GONE);
         layoutDrawBoard.setVisibility(View.GONE);
-
         contentContainer.addView(noteTextView);
+
+        checkNoteContentListLastItem();
     }
 
     private void findAllEditTexts(ViewGroup viewGroup, ArrayList<EditText> editTexts) {
