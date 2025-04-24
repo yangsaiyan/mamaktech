@@ -2,18 +2,25 @@ package com.example.mamaktech_assignment.activities;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.style.RelativeSizeSpan;
@@ -59,6 +66,7 @@ import yuku.ambilwarna.AmbilWarnaDialog;
 
 public class EditActivity extends AppCompatActivity {
 
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     private List<NoteContent> noteContentList = new ArrayList<>();
     private Button pickColorButton;
     private int mDefaultColor;
@@ -75,6 +83,8 @@ public class EditActivity extends AppCompatActivity {
     private Button saveDrawBoardButton, clearDrawBoardButton;
     private ImageButton menuButton;
     private boolean isLoading = true;
+    private SpeechRecognizer speechRecognizer;
+    private boolean isListening = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +103,15 @@ public class EditActivity extends AppCompatActivity {
                 onBackPressed();
             }
         });
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQUEST_RECORD_AUDIO_PERMISSION
+            );
+        }
 
         contentContainer = findViewById(R.id.contentContainer);
         layoutDrawTools = findViewById(R.id.layoutDrawTools);
@@ -204,6 +223,18 @@ public class EditActivity extends AppCompatActivity {
             }
         });
 
+        textSpeechIcon.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (isListening) {
+                    speechRecognizer.stopListening();
+                    isListening = false;
+                } else {
+                    startVoiceRecognition();
+                }
+            }
+        });
+
         drawToolsIcon.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -274,6 +305,185 @@ public class EditActivity extends AppCompatActivity {
             addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
             isLoading = false;
         }
+    }
+
+    private void startVoiceRecognition() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestAudioPermission();
+            return;
+        }
+
+        if (speechRecognizer == null) {
+            initializeSpeechRecognizer();
+        }
+
+        if (isListening) {
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to add text");
+
+            speechRecognizer.startListening(intent);
+            isListening = true;
+        } catch (Exception e) {
+            Log.e("SpeechRecognition", "Start listening failed", e);
+            handleRecognitionError(SpeechRecognizer.ERROR_CLIENT);
+        }
+    }
+
+    private void initializeSpeechRecognizer() {
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+        }
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+            @Override
+            public void onReadyForSpeech(Bundle params) {
+                runOnUiThread(() -> {
+                    isListening = true;
+                    Toast.makeText(EditActivity.this, "Speak now...", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onBeginningOfSpeech() {}
+
+            @Override
+            public void onRmsChanged(float rmsdB) {}
+
+            @Override
+            public void onBufferReceived(byte[] buffer) {}
+
+            @Override
+            public void onEndOfSpeech() {
+                isListening = false;
+            }
+
+            @Override
+            public void onError(int error) {
+                isListening = false;
+                runOnUiThread(() -> handleRecognitionError(error));
+            }
+
+            @Override
+            public void onResults(Bundle results) {
+                isListening = false;
+                ArrayList<String> matches = results.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION);
+                if (matches != null && !matches.isEmpty()) {
+                    runOnUiThread(() -> {
+                        String recognizedText = matches.get(0);
+                        // Find focused EditText or last one
+                        ArrayList<EditText> editTexts = new ArrayList<>();
+                        findAllEditTexts(contentContainer, editTexts);
+
+                        if (!editTexts.isEmpty()) {
+                            EditText target = editTexts.get(editTexts.size() - 1);
+                            target.setText(target.getText() + " " + recognizedText);
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onPartialResults(Bundle partialResults) {}
+
+            @Override
+            public void onEvent(int eventType, Bundle params) {}
+        });
+    }
+
+    private void handleRecognitionError(int errorCode) {
+        String errorMsg;
+        switch (errorCode) {
+            case SpeechRecognizer.ERROR_CLIENT:
+                errorMsg = "Please try speaking again";
+                initializeSpeechRecognizer();
+                break;
+            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                errorMsg = "Microphone permission required";
+                requestAudioPermission();
+                break;
+            default:
+                errorMsg = "Error: " + getErrorText(errorCode);
+        }
+
+        Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
+    }
+
+    private void requestAudioPermission() {
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.RECORD_AUDIO},
+                REQUEST_RECORD_AUDIO_PERMISSION);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (speechRecognizer != null) {
+            speechRecognizer.stopListening();
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        }
+        super.onDestroy();
+    }
+
+    private String getErrorText(int errorCode) {
+        String message;
+        switch (errorCode) {
+            case SpeechRecognizer.ERROR_AUDIO:
+                message = "Audio recording error";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_CLIENT:
+                message = "Client side error";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                message = "Insufficient permissions";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_NETWORK:
+                message = "Network error";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                message = "Network timeout";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_NO_MATCH:
+                message = "No speech recognized";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+                message = "RecognitionService busy";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_SERVER:
+                message = "Server error";
+                speechRecognizer.stopListening();
+                isListening = false;
+                break;
+            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                message = "No speech input";
+                break;
+            default:
+                message = "Unknown error";
+        }
+        return message;
     }
 
     public void showPopupMenu(View view) {
