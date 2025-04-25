@@ -1,11 +1,16 @@
 package com.example.mamaktech_assignment.adapters;
 
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.cardview.widget.CardView;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mamaktech_assignment.R;
@@ -59,15 +64,24 @@ public class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHold
     static class NoteViewHolder extends RecyclerView.ViewHolder {
 
         TextView textTitle, textSubtitle, textDateTime;
+        CardView noteContainer;
 
         NoteViewHolder(@NonNull View itemView) {
             super(itemView);
             textTitle = itemView.findViewById(R.id.textTitle);
             textSubtitle = itemView.findViewById(R.id.textSubtitle);
             textDateTime = itemView.findViewById(R.id.textDateTime);
+            noteContainer = itemView.findViewById(R.id.noteContainer);
         }
 
         void setNote(Note note) {
+
+            if(note.isPinned()){
+                noteContainer.setCardBackgroundColor(ContextCompat.getColor(itemView.getContext(), R.color.white));
+            } else {
+                noteContainer.setCardBackgroundColor(ContextCompat.getColor(itemView.getContext(), R.color.colorNoteItem));
+            }
+
             textTitle.setText(note.getTitle());
             if (note.getSubtitle().trim().isEmpty()) {
                 textSubtitle.setVisibility(View.GONE);

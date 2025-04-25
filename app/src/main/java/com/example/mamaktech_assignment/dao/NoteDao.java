@@ -13,12 +13,17 @@ import java.util.List;
 @Dao
 public interface NoteDao {
 
-    @Query("SELECT * FROM notes ORDER BY id DESC")
+    @Query("SELECT * FROM notes ORDER BY is_pinned DESC, id DESC")
     List<Note> getAllNotes();
 
-    @Query("SELECT * FROM notes WHERE title LIKE '%' || :title || '%' ORDER BY id DESC")
+    @Query("SELECT * FROM notes WHERE title LIKE '%' || :title || '%' ORDER BY is_pinned DESC, id DESC")
     List<Note> getQueriedNotes(String title);
 
+    @Query("UPDATE notes SET is_pinned = 1 WHERE id = :noteId")
+    void pinNote(int noteId);
+
+    @Query("UPDATE notes SET is_pinned = 0 WHERE id = :noteId")
+    void unpinNote(int noteId);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertNote(Note note);

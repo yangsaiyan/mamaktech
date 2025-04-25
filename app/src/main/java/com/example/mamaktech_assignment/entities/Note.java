@@ -16,6 +16,7 @@ public class Note implements Serializable {
 
     @PrimaryKey(autoGenerate = true)
     private int id;
+
     @ColumnInfo(name = "note_content_list")
     private List<NoteContent> noteContentList = new ArrayList<>();
 
@@ -28,6 +29,9 @@ public class Note implements Serializable {
     @ColumnInfo(name = "subtitle")
     private String subtitle;
 
+    @ColumnInfo(name = "is_pinned")
+    private boolean isPinned = false;
+
     public String getTitle() {
         return title;
     }
@@ -35,6 +39,7 @@ public class Note implements Serializable {
     public void setTitle(String title) {
         this.title = title;
     }
+
     public int getId() {
         return id;
     }
@@ -87,6 +92,14 @@ public class Note implements Serializable {
 
     public void setNoteContent(NoteContent nc) {
 
+    }
+
+    public boolean isPinned() {
+        return isPinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        isPinned = pinned;
     }
 
     @NonNull

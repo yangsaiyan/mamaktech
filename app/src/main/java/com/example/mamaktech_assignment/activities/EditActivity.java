@@ -44,6 +44,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.mamaktech_assignment.R;
+import com.example.mamaktech_assignment.dao.NoteDao;
 import com.example.mamaktech_assignment.database.NotesDatabase;
 import com.example.mamaktech_assignment.entities.Board;
 import com.example.mamaktech_assignment.entities.Note;
@@ -76,7 +77,6 @@ public class EditActivity extends AppCompatActivity {
     private ImageView addChecklistIcon, addImageIcon, drawToolsIcon, textToolsIcon, textSpeechIcon,
             displayColor, drawStroke1, drawStroke2, drawStroke3, drawStroke4, drawStroke5, textBold,
             textItalic, textUnderline, textFontInc, textFontDcr;
-    private Slider colorSlider;
     private Note alreadyAvailableNote;
     private boolean isViewOrUpdate = false;
     private Board drawBoard;
@@ -491,6 +491,11 @@ public class EditActivity extends AppCompatActivity {
         MenuInflater inflater = popupMenu.getMenuInflater();
         inflater.inflate(R.menu.overflow_menu, popupMenu.getMenu());
 
+        MenuItem pinItem = popupMenu.getMenu().findItem(R.id.pin);
+        if (alreadyAvailableNote != null) {
+            pinItem.setTitle(alreadyAvailableNote.isPinned() ? "Unpin" : "Pin");
+        }
+
         popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(MenuItem item) {
@@ -500,7 +505,32 @@ public class EditActivity extends AppCompatActivity {
                     Toast.makeText(getApplicationContext(), "Share clicked", Toast.LENGTH_SHORT).show();
                     return true;
                 } else if (id == R.id.pin) {
-                    Toast.makeText(getApplicationContext(), "Pin clicked", Toast.LENGTH_SHORT).show();
+                    @SuppressLint("StaticFieldLeak")
+                    class TogglePinTask extends AsyncTask<Void, Void, Void> {
+                        @Override
+                        protected Void doInBackground(Void... voids) {
+                            NotesDatabase db = NotesDatabase.getDatabase(getApplicationContext());
+                            NoteDao dao = db.noteDao();
+
+                            if(alreadyAvailableNote.isPinned()){
+                                dao.unpinNote(alreadyAvailableNote.getId());
+                                alreadyAvailableNote.setPinned(false);
+                            } else {
+                                dao.pinNote(alreadyAvailableNote.getId());
+                                alreadyAvailableNote.setPinned(true);
+                            }
+                            return null;
+                        }
+
+                        @Override
+                        protected void onPostExecute(Void aVoid) {
+                            super.onPostExecute(aVoid);
+                            String message = alreadyAvailableNote.isPinned() ?
+                                    "Note pinned successfully" : "Note unpinned successfully";
+                            Toast.makeText(EditActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    new TogglePinTask().execute();
                     return true;
                 } else if (id == R.id.convertPdf) {
                     PDFGenerator.generatePdfFromNotes(EditActivity.this, alreadyAvailableNote, "convertPDF");
