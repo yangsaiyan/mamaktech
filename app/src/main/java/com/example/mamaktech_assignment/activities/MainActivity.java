@@ -5,21 +5,31 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 
 import com.example.mamaktech_assignment.R;
 import com.example.mamaktech_assignment.adapters.NotesAdapter;
 import com.example.mamaktech_assignment.dao.NoteDao;
 import com.example.mamaktech_assignment.database.NotesDatabase;
 import com.example.mamaktech_assignment.entities.Note;
+import com.example.mamaktech_assignment.utils.ApiClient;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,10 +40,14 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
     public static final int REQUEST_CODE_UPDATE_NOTE = 2;
     public static final int REQUEST_CODE_VIEW_NOTE = 3;
 
+    private static final int REQUEST_CODE_USER_ACTION = 4;
+
     private RecyclerView notesRecyclerView;
     private EditText Searchbar;
     private List<Note> noteList;
     private NotesAdapter notesAdapter;
+    private ImageButton userButton;
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
 
         ImageView imageAddNoteMain = findViewById(R.id.imageAddNoteMain);
         Searchbar = findViewById(R.id.inputSearch);
+        userButton = findViewById(R.id.userMenu);
 
         Searchbar.addTextChangedListener(new TextWatcher() {
             @Override
@@ -78,6 +93,13 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
             }
         });
 
+        userButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showPopupMenu(view);
+            }
+        });
+
         notesRecyclerView = findViewById(R.id.notesCyclerView);
         notesRecyclerView.setLayoutManager(
                 new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
@@ -90,12 +112,100 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         getNotes();
     }
 
+    public void AuthPrefs(Context context) {
+        prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+    }
+
     @Override
     public void onNoteClicked(Note note, int position) {
         Intent intent = new Intent(getApplicationContext(), EditActivity.class);
         intent.putExtra("isViewOrUpdate", true);
         intent.putExtra("note", note);
         startActivityForResult(intent, REQUEST_CODE_UPDATE_NOTE);
+    }
+
+    public void showPopupMenu(View view) {
+        PopupMenu popupMenu = new PopupMenu(this, view);
+        MenuInflater inflater = popupMenu.getMenuInflater();
+        inflater.inflate(R.menu.overflow_user_menu, popupMenu.getMenu());
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                int id = item.getItemId();
+
+                if (id == R.id.userAction) {
+                    startActivityForResult(
+                            new Intent(getApplicationContext(), UserActivity.class),
+                            REQUEST_CODE_USER_ACTION);
+                    return true;
+                } else if (id == R.id.backup) {
+                    backupNote();
+                    return true;
+                } else if (id == R.id.retrieve) {
+                    return true;
+                }
+                return false;
+            }
+        });
+        popupMenu.show();
+    }
+
+    private void backupNote() {
+        ApiClient apiClient = new ApiClient(this);
+        String authToken = getAuthToken(); // Get from SharedPreferences
+
+        try {
+            JSONObject noteData = new JSONObject();
+            noteData.put("title", "My Note");
+            noteData.put("content", "This is my note content");
+
+            apiClient.createOrUpdateNote(authToken, noteData, new ApiClient.ApiResponseListener() {
+                @Override
+                public void onSuccess(JSONObject response) {
+                    try {
+                        String noteId = response.getString("id");
+                        // Handle success
+                    } catch (JSONException e) {
+                        Log.e("API", "Error parsing response", e);
+                    }
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    Log.e("API", "Error: " + errorMessage);
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void retrieveNote() {
+
+        ApiClient apiClient = new ApiClient(this);
+        String authToken = getAuthToken();
+
+        apiClient.getNote(authToken, new ApiClient.ApiResponseListener() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                try {
+                    String title = response.getString("title");
+                    String content = response.getString("content");
+                    // Update UI with note data
+                } catch (JSONException e) {
+                    Log.e("API", "Error parsing note", e);
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Log.e("API", "Error fetching note: " + errorMessage);
+            }
+        });
+    }
+
+    public String getAuthToken() {
+        return prefs.getString("authToken", null);
     }
 
     private void onSearchChange(String query) {
