@@ -91,7 +91,7 @@ public class UserActivity extends AppCompatActivity {
                     getContentResolver(), Settings.Secure.ANDROID_ID));
 
             ApiFetcher.postRequest(
-                    "http://10.0.2.2:3000/users/register",
+                    "https://notedown-backend-514961d738c0.herokuapp.com/users/register",
                     requestBody,
                     headers,
                     new ApiFetcher.ApiCallback<JSONObject>() {
@@ -179,7 +179,7 @@ public class UserActivity extends AppCompatActivity {
             headers.put("Content-Type", "application/json");
 
             ApiFetcher.postRequest(
-                    "http://10.0.2.2:3000/users/login",
+                    "https://notedown-backend-514961d738c0.herokuapp.com/users/login",
                     requestBody,
                     headers,
                     new ApiFetcher.ApiCallback<JSONObject>() {

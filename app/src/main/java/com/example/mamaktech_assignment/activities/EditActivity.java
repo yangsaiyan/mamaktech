@@ -12,6 +12,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -26,6 +28,7 @@ import android.text.Spannable;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -56,6 +59,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -283,7 +288,8 @@ public class EditActivity extends AppCompatActivity {
 
 
                         final Uri drawBoardImage = drawBoard.saveToImage(String.valueOf(Math.random() * 1000000001) + "NoteDown");
-                        addImage(drawBoardImage);
+                        String base64Image = convertUriToBase64(drawBoardImage);
+                        addImage(base64Image);
                     }
                 });
 
@@ -554,7 +560,8 @@ public class EditActivity extends AppCompatActivity {
 
         if (requestCode == 1 && resultCode == RESULT_OK && data != null) {
             Uri selectedImage = data.getData();
-            addImage(selectedImage);
+            String base64Image = convertUriToBase64(selectedImage);
+            addImage(base64Image);
         }
     }
 
@@ -624,7 +631,7 @@ public class EditActivity extends AppCompatActivity {
                     }else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
                         addChecklistContent(content.isCheckBool(), content.getCheckText());
                     }else if (content.typeCheck() == NoteContent.TYPE_IMAGE && content.getImagePath() != null) {
-                        addImage(Uri.parse(content.getImagePath()));
+                        addImage(content.getImagePath());
                     }
                 }
             }
@@ -726,21 +733,47 @@ public class EditActivity extends AppCompatActivity {
         checkNoteContentListLastItem();
     }
 
-    private void addImage(Uri imagePath) {
-        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_IMAGE, String.valueOf(imagePath), "");
+    private void addImage(String base64Image) {
+        final NoteContent noteContent = new NoteContent(NoteContent.TYPE_IMAGE, base64Image, "");
         checkNoteContentListpreviousItem();
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
         View noteTextView = inflater.inflate(R.layout.note_image, contentContainer, false);
         ImageView imageView = noteTextView.findViewById(R.id.inputImage);
-        imageView.setImageURI(imagePath);
+
+        // Convert Base64 to Bitmap and set to ImageView
+        try {
+            byte[] decodedBytes = Base64.decode(base64Image, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+            imageView.setImageBitmap(bitmap);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         drawBoard.clearDrawing();
         layoutDrawTools.setVisibility(View.GONE);
         layoutDrawBoard.setVisibility(View.GONE);
         contentContainer.addView(noteTextView);
-
         checkNoteContentListLastItem();
+    }
+
+    private String convertUriToBase64(Uri imageUri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(imageUri);
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+            if (inputStream != null) {
+                inputStream.close();
+            }
+
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            return Base64.encodeToString(byteArray, Base64.DEFAULT);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private void findAllEditTexts(ViewGroup viewGroup, ArrayList<EditText> editTexts) {
@@ -990,7 +1023,7 @@ public class EditActivity extends AppCompatActivity {
                 protected Void doInBackground(Void... voids) {
                     try {
                         NotesDatabase.getDatabase(getApplicationContext())
-                                .noteDao().deleteNote(alreadyAvailableNote);
+                                .noteDao().deleteAllNotes();
                         Log.d("DELETE_NOTE", "Note deleted successfully");
                         return null;
                     } catch (Exception e) {

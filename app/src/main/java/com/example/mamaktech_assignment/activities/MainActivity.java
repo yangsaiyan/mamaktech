@@ -1,6 +1,9 @@
 package com.example.mamaktech_assignment.activities;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
@@ -8,7 +11,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -20,19 +25,25 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
+import android.widget.Toast;
 
+import android.Manifest;
 import com.example.mamaktech_assignment.R;
 import com.example.mamaktech_assignment.adapters.NotesAdapter;
 import com.example.mamaktech_assignment.dao.NoteDao;
 import com.example.mamaktech_assignment.database.NotesDatabase;
 import com.example.mamaktech_assignment.entities.Note;
+import com.example.mamaktech_assignment.entities.NoteContent;
 import com.example.mamaktech_assignment.utils.ApiClient;
+import com.example.mamaktech_assignment.utils.JsonConverter;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+
 
 public class MainActivity extends AppCompatActivity implements NotesAdapter.NotesListener {
 
@@ -54,6 +65,8 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        requestStoragePermission();
+        prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
         ImageView imageAddNoteMain = findViewById(R.id.imageAddNoteMain);
         Searchbar = findViewById(R.id.inputSearch);
         userButton = findViewById(R.id.userMenu);
@@ -112,10 +125,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         getNotes();
     }
 
-    public void AuthPrefs(Context context) {
-        prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-    }
-
     @Override
     public void onNoteClicked(Note note, int position) {
         Intent intent = new Intent(getApplicationContext(), EditActivity.class);
@@ -139,9 +148,10 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                             REQUEST_CODE_USER_ACTION);
                     return true;
                 } else if (id == R.id.backup) {
-                    backupNote();
+                    backupNote(noteList);
                     return true;
                 } else if (id == R.id.retrieve) {
+                    retrieveNote();
                     return true;
                 }
                 return false;
@@ -150,47 +160,92 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         popupMenu.show();
     }
 
-    private void backupNote() {
+    private static final int REQUEST_STORAGE_PERMISSION = 1;
+
+    private void requestStoragePermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                    REQUEST_STORAGE_PERMISSION);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    private void backupNote(List<Note> notes) {
+        int count = 1;
+        Log.d("Count", String.valueOf(count++));
         ApiClient apiClient = new ApiClient(this);
-        String authToken = getAuthToken(); // Get from SharedPreferences
+        String authToken = getAuthToken();
+        Log.d("AUTHTOKEN", getAuthToken());
+        Log.d("Count", String.valueOf(count++));
 
+        if (authToken == null) {
+            Log.d("Count", String.valueOf(count++));
+            Toast.makeText(this, "Not authenticated", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Log.d("Count", String.valueOf(count++));
         try {
-            JSONObject noteData = new JSONObject();
-            noteData.put("title", "My Note");
-            noteData.put("content", "This is my note content");
+            Log.d("Count", String.valueOf(count++));
+            JSONArray notesArray = new JSONArray();
+            for (Note note : notes) {
+                JSONObject noteJson = new JSONObject();
+                noteJson.put("title", note.getTitle());
+                noteJson.put("subtitle", note.getSubtitle());
+                noteJson.put("date_time", note.getDateTime());
+                noteJson.put("is_pinned", note.isPinned());
 
-            apiClient.createOrUpdateNote(authToken, noteData, new ApiClient.ApiResponseListener() {
+                String noteContentJson = new JsonConverter().fromNoteContentList(note.getNoteContentList());
+                noteJson.put("note_content_list", new JSONArray(noteContentJson));
+
+                notesArray.put(noteJson);
+            }
+            Log.d("Count", String.valueOf(count++));
+            apiClient.uploadAllNotes(authToken, notesArray, new ApiClient.ApiResponseListener() {
+                @Override
+                public void onSuccess(JSONArray response) {
+                    runOnUiThread(() ->
+                            Toast.makeText(MainActivity.this, "Notes backed up successfully", Toast.LENGTH_SHORT).show()
+                    );
+                    Log.d("RESPONSE", String.valueOf(response));
+                }
+
                 @Override
                 public void onSuccess(JSONObject response) {
-                    try {
-                        String noteId = response.getString("id");
-                        // Handle success
-                    } catch (JSONException e) {
-                        Log.e("API", "Error parsing response", e);
-                    }
+                    runOnUiThread(() ->
+                            Toast.makeText(MainActivity.this, "Notes backed up successfully", Toast.LENGTH_SHORT).show()
+                    );
+                    Log.d("RESPONSE", String.valueOf(response));
                 }
 
                 @Override
                 public void onError(String errorMessage) {
-                    Log.e("API", "Error: " + errorMessage);
+                    runOnUiThread(() ->
+                            Toast.makeText(MainActivity.this, "Backup failed: " + errorMessage, Toast.LENGTH_SHORT).show()
+                    );
                 }
             });
         } catch (JSONException e) {
             e.printStackTrace();
+            Toast.makeText(this, "Error preparing notes for upload", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void retrieveNote() {
-
         ApiClient apiClient = new ApiClient(this);
         String authToken = getAuthToken();
-
-        apiClient.getNote(authToken, new ApiClient.ApiResponseListener() {
+        apiClient.getAllNotes(authToken, new ApiClient.ApiResponseListener() {
             @Override
             public void onSuccess(JSONObject response) {
                 try {
                     String title = response.getString("title");
                     String content = response.getString("content");
+                    Log.d("RESPONSE1", String.valueOf(response));
                     // Update UI with note data
                 } catch (JSONException e) {
                     Log.e("API", "Error parsing note", e);
@@ -198,10 +253,84 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
             }
 
             @Override
+            public void onSuccess(JSONArray response) {
+                Log.d("RESPONSE2", String.valueOf(response));
+
+                List<Note> notesFromServer = parseNotesFromJson(response);
+
+                new Thread(() -> {
+                    try {
+                        NotesDatabase database = NotesDatabase.getDatabase(getApplicationContext());
+                        NoteDao noteDao = database.noteDao();
+
+                        noteDao.deleteAllNotes();
+                        for (Note note : notesFromServer) {
+                            noteDao.insertNote(note);
+                        }
+                        getNotes();
+
+                    } catch (Exception e) {
+                        Log.e("Database", "Error updating database", e);
+                    }
+                }).start();
+            }
+
+            @Override
             public void onError(String errorMessage) {
                 Log.e("API", "Error fetching note: " + errorMessage);
             }
         });
+    }
+
+    private List<Note> parseNotesFromJson(JSONArray jsonArray) {
+        List<Note> notes = new ArrayList<>();
+        try {
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonNote = jsonArray.getJSONObject(i);
+                Note note = new Note();
+
+                note.setId(jsonNote.getInt("id"));
+                note.setTitle(jsonNote.optString("title", ""));
+                note.setSubtitle(jsonNote.optString("subtitle", ""));
+                note.setDateTime(jsonNote.optString("date_time", ""));
+                note.setPinned(jsonNote.optBoolean("is_pinned", false));
+
+                JSONArray contentArray = jsonNote.getJSONArray("note_content_list");
+                List<NoteContent> contentList = new ArrayList<>();
+
+                for (int j = 0; j < contentArray.length(); j++) {
+                    JSONObject contentObj = contentArray.getJSONObject(j);
+
+                    int type = contentObj.optInt("type", 0);
+                    if(type == NoteContent.TYPE_TEXT){
+
+                        NoteContent noteContent = new NoteContent(type,
+                                contentObj.optString("text", ""),
+                                contentObj.optString("textFormatting", "[]"));
+                        contentList.add(noteContent);
+                    } else if(type == NoteContent.TYPE_CHECK) {
+
+                        NoteContent noteContent = new
+                                NoteContent(contentObj.getBoolean("checkBool"),
+                                contentObj.optString("checkText", ""));
+                        contentList.add(noteContent);
+                    } else if(type == NoteContent.TYPE_IMAGE) {
+
+                        NoteContent noteContent = new NoteContent(type,
+                                contentObj.optString("imagePath", ""),
+                                contentObj.optString("textFormatting", "[]"));
+                        contentList.add(noteContent);
+                    }
+                }
+
+                note.setNoteContentList(contentList);
+                notes.add(note);
+            }
+        } catch (JSONException e) {
+            Log.e("ParseJson", "Error parsing notes from JSON", e);
+            e.printStackTrace();
+        }
+        return notes;
     }
 
     public String getAuthToken() {
