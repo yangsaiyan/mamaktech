@@ -30,6 +30,7 @@ import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
 import android.util.Base64;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -73,23 +74,21 @@ import yuku.ambilwarna.AmbilWarnaDialog;
 public class EditActivity extends AppCompatActivity {
 
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
-    private List<NoteContent> noteContentList = new ArrayList<>();
-    private Button pickColorButton;
     private int mDefaultColor;
+    private boolean isViewOrUpdate = false, isLoading = true, isListening = false;
+    private List<NoteContent> noteContentList = new ArrayList<>();
+    private Board drawBoard;
+    private Button pickColorButton;
     private LinearLayout layoutDrawTools, layoutTextTools, layoutDrawBoard, contentContainer;
     private EditText inputNoteTitle, inputNoteSubtitle, inputNoteText;
     private TextView textDateTime;
     private ImageView addChecklistIcon, addImageIcon, drawToolsIcon, textToolsIcon, textSpeechIcon,
             displayColor, drawStroke1, drawStroke2, drawStroke3, drawStroke4, drawStroke5, textBold,
-            textItalic, textUnderline, textFontInc, textFontDcr;
+            textItalic, textUnderline, textFontInc, textFontDcr, imageSave, imageBack;
     private Note alreadyAvailableNote;
-    private boolean isViewOrUpdate = false;
-    private Board drawBoard;
     private Button saveDrawBoardButton, clearDrawBoardButton;
     private ImageButton menuButton;
-    private boolean isLoading = true;
     private SpeechRecognizer speechRecognizer;
-    private boolean isListening = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,13 +100,9 @@ public class EditActivity extends AppCompatActivity {
                 new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
                 1);
 
-        ImageView imageBack = findViewById(R.id.imageBack);
-        imageBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                onBackPressed();
-            }
-        });
+        mDefaultColor = 0;
+        findViewsByIds();
+        allSetListeners();
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -118,35 +113,40 @@ public class EditActivity extends AppCompatActivity {
             );
         }
 
-        contentContainer = findViewById(R.id.contentContainer);
-        layoutDrawTools = findViewById(R.id.layoutDrawTools);
-        layoutTextTools = findViewById(R.id.layoutTextTools);
-        layoutDrawBoard = findViewById(R.id.layoutDrawBoard);
-        inputNoteTitle = findViewById(R.id.inputNoteTitle);
-        inputNoteSubtitle = findViewById(R.id.inputNoteSubtitle);
-        inputNoteText = findViewById(R.id.inputNote);
-        textDateTime = findViewById(R.id.textDateTime);
-        addChecklistIcon = findViewById(R.id.addChecklist);
-        addImageIcon = findViewById(R.id.addImage);
-        drawToolsIcon = findViewById(R.id.drawTools);
-        textToolsIcon = findViewById(R.id.textTools);
-        textSpeechIcon = findViewById(R.id.textSpeech);
-        displayColor = findViewById(R.id.displayColor);
-        addChecklistIcon = findViewById(R.id.addChecklist);
-        drawBoard = findViewById(R.id.drawBoard);
-        saveDrawBoardButton = findViewById(R.id.drawBoardSave);
-        clearDrawBoardButton = findViewById(R.id.drawBoardClear);
-        drawStroke1 = findViewById(R.id.drawStroke1);
-        drawStroke2 = findViewById(R.id.drawStroke2);
-        drawStroke3 = findViewById(R.id.drawStroke3);
-        drawStroke4 = findViewById(R.id.drawStroke4);
-        drawStroke5 = findViewById(R.id.drawStroke5);
-        textBold = findViewById(R.id.textBold);
-        textItalic = findViewById(R.id.textItalic);
-        textUnderline = findViewById(R.id.textUnderline);
-        textFontInc = findViewById(R.id.textFontIncrease);
-        textFontDcr = findViewById(R.id.textFontDecrease);
-        menuButton = findViewById(R.id.menu);
+        textDateTime.setText(
+                new SimpleDateFormat("EEEE, dd MMMM yyyy HH:mm a", Locale.getDefault())
+                        .format(new Date())
+        );
+
+
+        if (getIntent().getBooleanExtra("isViewOrUpdate", false)) {
+            isViewOrUpdate = true;
+            alreadyAvailableNote = (Note) getIntent().getSerializableExtra("note");
+            setViewOrUpdateNote();
+            isLoading = false;
+        } else {
+            addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
+            isLoading = false;
+        }
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 1 && resultCode == RESULT_OK && data != null) {
+            Uri selectedImage = data.getData();
+            String base64Image = convertUriToBase64(selectedImage);
+            addImage(base64Image);
+        }
+    }
+
+    private void allSetListeners() {
+        imageBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onBackPressed();
+            }
+        });
 
         menuButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -202,11 +202,11 @@ public class EditActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent intent;
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT){
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                     intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                     intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                     intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-                }else{
+                } else {
                     intent = new Intent(Intent.ACTION_GET_CONTENT);
                 }
                 intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
@@ -255,22 +255,12 @@ public class EditActivity extends AppCompatActivity {
             }
         });
 
-        textDateTime.setText(
-                new SimpleDateFormat("EEEE, dd MMMM yyyy HH:mm a", Locale.getDefault())
-                        .format(new Date())
-        );
-
-        ImageView imageSave = findViewById(R.id.imageSave);
         imageSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 saveNote();
             }
         });
-
-        pickColorButton = findViewById(R.id.pickColorButton);
-
-        mDefaultColor = 0;
 
         pickColorButton.setOnClickListener(
                 new View.OnClickListener() {
@@ -301,18 +291,70 @@ public class EditActivity extends AppCompatActivity {
                         drawBoard.clearDrawing();
                     }
                 });
+    }
 
-        if (getIntent().getBooleanExtra("isViewOrUpdate", false)) {
-            isViewOrUpdate = true;
-            alreadyAvailableNote = (Note) getIntent().getSerializableExtra("note");
-            setViewOrUpdateNote();
-            isLoading = false;
-        } else {
-            addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
-            isLoading = false;
+    private void findViewsByIds(){
+        contentContainer = findViewById(R.id.contentContainer);
+        layoutDrawTools = findViewById(R.id.layoutDrawTools);
+        layoutTextTools = findViewById(R.id.layoutTextTools);
+        layoutDrawBoard = findViewById(R.id.layoutDrawBoard);
+        inputNoteTitle = findViewById(R.id.inputNoteTitle);
+        inputNoteSubtitle = findViewById(R.id.inputNoteSubtitle);
+        inputNoteText = findViewById(R.id.inputNote);
+        textDateTime = findViewById(R.id.textDateTime);
+        addChecklistIcon = findViewById(R.id.addChecklist);
+        addImageIcon = findViewById(R.id.addImage);
+        drawToolsIcon = findViewById(R.id.drawTools);
+        textToolsIcon = findViewById(R.id.textTools);
+        textSpeechIcon = findViewById(R.id.textSpeech);
+        displayColor = findViewById(R.id.displayColor);
+        addChecklistIcon = findViewById(R.id.addChecklist);
+        drawBoard = findViewById(R.id.drawBoard);
+        saveDrawBoardButton = findViewById(R.id.drawBoardSave);
+        clearDrawBoardButton = findViewById(R.id.drawBoardClear);
+        drawStroke1 = findViewById(R.id.drawStroke1);
+        drawStroke2 = findViewById(R.id.drawStroke2);
+        drawStroke3 = findViewById(R.id.drawStroke3);
+        drawStroke4 = findViewById(R.id.drawStroke4);
+        drawStroke5 = findViewById(R.id.drawStroke5);
+        textBold = findViewById(R.id.textBold);
+        textItalic = findViewById(R.id.textItalic);
+        textUnderline = findViewById(R.id.textUnderline);
+        textFontInc = findViewById(R.id.textFontIncrease);
+        textFontDcr = findViewById(R.id.textFontDecrease);
+        menuButton = findViewById(R.id.menu);
+        imageSave = findViewById(R.id.imageSave);
+        imageBack = findViewById(R.id.imageBack);
+        pickColorButton = findViewById(R.id.pickColorButton);
+    }
+
+    private void setViewOrUpdateNote() {
+        if (alreadyAvailableNote != null) {
+            inputNoteTitle.setText(alreadyAvailableNote.getTitle());
+            inputNoteSubtitle.setText(alreadyAvailableNote.getSubtitle());
+
+            noteContentList.clear();
+            contentContainer.removeAllViews();
+
+            Log.d("DISPLAY", "Current size before display: " + alreadyAvailableNote.getNoteContentList().size());
+
+            if (alreadyAvailableNote.getNoteContentList() != null && !alreadyAvailableNote.getNoteContentList().isEmpty()) {
+                for (NoteContent content : alreadyAvailableNote.getNoteContentList()) {
+                    Log.d("DISPLAY", "Current: " + content.getText());
+                    if (content.typeCheck() == NoteContent.TYPE_TEXT && content.getText() != null) {
+                        addTextContent(content);
+                    } else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
+                        addChecklistContent(content.isCheckBool(), content.getCheckText());
+                    } else if (content.typeCheck() == NoteContent.TYPE_IMAGE && content.getImagePath() != null) {
+                        addImage(content.getImagePath());
+                    }
+                }
+            }
+            textDateTime.setText(alreadyAvailableNote.getDateTime());
         }
     }
 
+    //Voice to Text - Start
     private void startVoiceRecognition() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -359,13 +401,16 @@ public class EditActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onBeginningOfSpeech() {}
+            public void onBeginningOfSpeech() {
+            }
 
             @Override
-            public void onRmsChanged(float rmsdB) {}
+            public void onRmsChanged(float rmsdB) {
+            }
 
             @Override
-            public void onBufferReceived(byte[] buffer) {}
+            public void onBufferReceived(byte[] buffer) {
+            }
 
             @Override
             public void onEndOfSpeech() {
@@ -386,7 +431,6 @@ public class EditActivity extends AppCompatActivity {
                 if (matches != null && !matches.isEmpty()) {
                     runOnUiThread(() -> {
                         String recognizedText = matches.get(0);
-                        // Find focused EditText or last one
                         ArrayList<EditText> editTexts = new ArrayList<>();
                         findAllEditTexts(contentContainer, editTexts);
 
@@ -399,10 +443,12 @@ public class EditActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onPartialResults(Bundle partialResults) {}
+            public void onPartialResults(Bundle partialResults) {
+            }
 
             @Override
-            public void onEvent(int eventType, Bundle params) {}
+            public void onEvent(int eventType, Bundle params) {
+            }
         });
     }
 
@@ -491,6 +537,7 @@ public class EditActivity extends AppCompatActivity {
         }
         return message;
     }
+    //Voice to Text - End
 
     public void showPopupMenu(View view) {
         PopupMenu popupMenu = new PopupMenu(this, view);
@@ -508,9 +555,15 @@ public class EditActivity extends AppCompatActivity {
                 int id = item.getItemId();
 
                 if (id == R.id.share) {
-                    Toast.makeText(getApplicationContext(), "Share clicked", Toast.LENGTH_SHORT).show();
+                    if(alreadyAvailableNote == null){
+                        return false;
+                    }
+                    PDFGenerator.generatePdfFromNotes(EditActivity.this, alreadyAvailableNote, "share");
                     return true;
                 } else if (id == R.id.pin) {
+                    if(alreadyAvailableNote == null){
+                        return false;
+                    }
                     @SuppressLint("StaticFieldLeak")
                     class TogglePinTask extends AsyncTask<Void, Void, Void> {
                         @Override
@@ -518,7 +571,7 @@ public class EditActivity extends AppCompatActivity {
                             NotesDatabase db = NotesDatabase.getDatabase(getApplicationContext());
                             NoteDao dao = db.noteDao();
 
-                            if(alreadyAvailableNote.isPinned()){
+                            if (alreadyAvailableNote.isPinned()) {
                                 dao.unpinNote(alreadyAvailableNote.getId());
                                 alreadyAvailableNote.setPinned(false);
                             } else {
@@ -539,9 +592,15 @@ public class EditActivity extends AppCompatActivity {
                     new TogglePinTask().execute();
                     return true;
                 } else if (id == R.id.convertPdf) {
+                    if(alreadyAvailableNote == null){
+                        return false;
+                    }
                     PDFGenerator.generatePdfFromNotes(EditActivity.this, alreadyAvailableNote, "convertPDF");
                     return true;
                 } else if (id == R.id.delete) {
+                    if(alreadyAvailableNote == null){
+                        return false;
+                    }
                     Log.d("DELETE_NOTE", "Menu clicked");
                     deleteNote();
                     return true;
@@ -552,17 +611,6 @@ public class EditActivity extends AppCompatActivity {
         });
 
         popupMenu.show();
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == 1 && resultCode == RESULT_OK && data != null) {
-            Uri selectedImage = data.getData();
-            String base64Image = convertUriToBase64(selectedImage);
-            addImage(base64Image);
-        }
     }
 
     private void changeStrokeSizeListeners() {
@@ -613,84 +661,77 @@ public class EditActivity extends AppCompatActivity {
                 });
     }
 
-    private void setViewOrUpdateNote() {
-        if (alreadyAvailableNote != null) {
-            inputNoteTitle.setText(alreadyAvailableNote.getTitle());
-            inputNoteSubtitle.setText(alreadyAvailableNote.getSubtitle());
-
-            noteContentList.clear();
-            contentContainer.removeAllViews();
-
-            Log.d("DISPLAY", "Current size before display: " + alreadyAvailableNote.getNoteContentList().size());
-
-            if (alreadyAvailableNote.getNoteContentList() != null && !alreadyAvailableNote.getNoteContentList().isEmpty()) {
-                for (NoteContent content : alreadyAvailableNote.getNoteContentList()) {
-                    Log.d("DISPLAY", "Current: " + content.getText());
-                    if (content.typeCheck() == NoteContent.TYPE_TEXT && content.getText() != null) {
-                        addTextContent(content);
-                    }else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
-                        addChecklistContent(content.isCheckBool(), content.getCheckText());
-                    }else if (content.typeCheck() == NoteContent.TYPE_IMAGE && content.getImagePath() != null) {
-                        addImage(content.getImagePath());
-                    }
-                }
-            }
-            textDateTime.setText(alreadyAvailableNote.getDateTime());
-        }
-    }
-
-    private void checkNoteContentListLastItem() {
-
-        if(isLoading) return;
-
-        if(noteContentList.get(noteContentList.size() - 1).typeCheck() != NoteContent.TYPE_TEXT){
-            addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
-        }
-    }
-
-    private void checkNoteContentListpreviousItem() {
-
-        if(isLoading) return;
-
-        ArrayList<EditText> allEditTexts = new ArrayList<>();
-        findAllEditTexts(contentContainer, allEditTexts);
-        if(allEditTexts.get(allEditTexts.size() - 1).getText().toString().trim().isEmpty()
-                && noteContentList.get(noteContentList.size() - 1 ).getText().equals("")){
-            allEditTexts.remove(allEditTexts.size() - 1);
-            noteContentList.remove(noteContentList.size() - 1);
-            contentContainer.removeViewAt(contentContainer.getChildCount() - 1);
-        }
-    }
-
+    //Content - Start
     private void addTextContent(NoteContent content) {
         final NoteContent noteContent = new NoteContent(NoteContent.TYPE_TEXT, content.getText(), "");
         noteContentList.add(noteContent);
 
         LayoutInflater inflater = LayoutInflater.from(this);
-        View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);;
-        EditText editText  = noteTextView.findViewById(R.id.inputNote);
+        View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);
+        ;
+        EditText editText = noteTextView.findViewById(R.id.inputNote);
 
         Log.d("SHOW_FORMATTING_DATA_LENGTH", !Objects.equals(content.getTextFormatting(), "") ? content.getTextFormatting() : String.valueOf(content.getTextFormatting().length()));
 
-        if(!Objects.equals(content.getTextFormatting(), "") && content.getTextFormatting().length() > 0) {
+        if (!Objects.equals(content.getTextFormatting(), "") && content.getTextFormatting().length() > 0) {
             restoreTextFormatting(editText, content);
         } else {
             editText.setText(content.getText());
         }
 
         editText.addTextChangedListener(new android.text.TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            private boolean backspacePressed = false;
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                if (after < count && s.length() <= 1) {
+                    backspacePressed = true;
+                }
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                noteContent.setText(s.toString());
+            }
 
             @Override
             public void afterTextChanged(android.text.Editable s) {
-                noteContent.setText(s.toString());
-                Log.d("TEXT_UPDATE", "Updated text: " + s.toString());
+                String currentText = s.toString();
+
+                if (backspacePressed && currentText.isEmpty()) {
+                    backspacePressed = false;
+
+                    int currentPosition = noteContentList.indexOf(noteContent);
+
+                    editText.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (currentPosition > 0) {
+
+                                View previousView = contentContainer.getChildAt(currentPosition - 1);
+                                EditText previousEditText =
+                                        noteContentList.get(currentPosition - 1).typeCheck() == NoteContent.TYPE_CHECK ?
+                                                previousView.findViewById(R.id.editCheckText) :
+                                                previousView.findViewById(R.id.inputNote);
+
+                                if(currentText.length() == 0) {
+
+                                    noteContentList.remove(currentPosition);
+                                    contentContainer.removeViewAt(currentPosition);
+                                    if (previousEditText != null) {
+                                        previousEditText.requestFocus();
+                                        previousEditText.setSelection(previousEditText.getText().length());
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
             }
         });
+
+        checkIsEmptyWhenBackspace(noteTextView, editText, noteContent);
+
         contentContainer.addView(noteTextView);
     }
 
@@ -710,16 +751,53 @@ public class EditActivity extends AppCompatActivity {
         editText.setBackground(null);
 
         editText.addTextChangedListener(new android.text.TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            private boolean backspacePressed = false;
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                if (after < count && s.length() <= 1) {
+                    backspacePressed = true;
+                }
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                noteContent.setCheckText(s.toString());
+            }
 
             @Override
             public void afterTextChanged(android.text.Editable s) {
-                noteContent.setCheckText(s.toString());
-                Log.d("TEXT_UPDATE", "Updated text: " + s.toString());
+                String currentText = s.toString();
+
+                if (backspacePressed && currentText.isEmpty()) {
+                    backspacePressed = false;
+
+                    int currentPosition = noteContentList.indexOf(noteContent);
+
+                    editText.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (currentPosition > 0) {
+
+                                View previousView = contentContainer.getChildAt(currentPosition - 1);
+                                EditText previousEditText =
+                                        noteContentList.get(currentPosition - 1).typeCheck() == NoteContent.TYPE_CHECK ?
+                                previousView.findViewById(R.id.editCheckText) :
+                                                previousView.findViewById(R.id.inputNote);
+
+                                if(currentText.length() == 0) {
+
+                                    noteContentList.remove(currentPosition);
+                                    contentContainer.removeViewAt(currentPosition);
+                                    if (previousEditText != null) {
+                                        previousEditText.requestFocus();
+                                        previousEditText.setSelection(previousEditText.getText().length());
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
             }
         });
 
@@ -728,8 +806,9 @@ public class EditActivity extends AppCompatActivity {
             Log.d("CHECK_UPDATE", "Checked: " + isChecked);
         });
 
-        contentContainer.addView(noteTextView);
+        checkIsEmptyWhenBackspace(noteTextView, editText, noteContent);
 
+        contentContainer.addView(noteTextView);
         checkNoteContentListLastItem();
     }
 
@@ -742,7 +821,6 @@ public class EditActivity extends AppCompatActivity {
         View noteTextView = inflater.inflate(R.layout.note_image, contentContainer, false);
         ImageView imageView = noteTextView.findViewById(R.id.inputImage);
 
-        // Convert Base64 to Bitmap and set to ImageView
         try {
             byte[] decodedBytes = Base64.decode(base64Image, Base64.DEFAULT);
             Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
@@ -757,7 +835,9 @@ public class EditActivity extends AppCompatActivity {
         contentContainer.addView(noteTextView);
         checkNoteContentListLastItem();
     }
+    //Content - End
 
+    //Content Image Utility
     private String convertUriToBase64(Uri imageUri) {
         try {
             InputStream inputStream = getContentResolver().openInputStream(imageUri);
@@ -776,6 +856,7 @@ public class EditActivity extends AppCompatActivity {
         }
     }
 
+    //Content Text Utility - Start
     private void findAllEditTexts(ViewGroup viewGroup, ArrayList<EditText> editTexts) {
         int childCount = viewGroup.getChildCount();
         for (int i = 0; i < childCount; i++) {
@@ -835,7 +916,88 @@ public class EditActivity extends AppCompatActivity {
             }
         }
     }
+    //Content Text Utility - End
 
+    //Board_Draw Color Picker
+    private void openColorPickerDialogue() {
+
+        final AmbilWarnaDialog colorPickerDialogue = new AmbilWarnaDialog(this, mDefaultColor,
+                new AmbilWarnaDialog.OnAmbilWarnaListener() {
+                    @Override
+                    public void onCancel(AmbilWarnaDialog dialog) {
+
+                    }
+
+                    @Override
+                    public void onOk(AmbilWarnaDialog dialog, int color) {
+
+                        mDefaultColor = color;
+                        displayColor.setColorFilter(mDefaultColor);
+                        Log.d("COLOR_VALUE", String.valueOf(color));
+                        drawBoard.setColor(mDefaultColor);
+                    }
+                });
+        colorPickerDialogue.show();
+    }
+
+    //Validation - Start
+    private void checkIsEmptyWhenBackspace(View view, EditText editText, NoteContent noteContent) {
+
+        editText.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                        keyCode == KeyEvent.KEYCODE_DEL &&
+                        editText.getText().toString().isEmpty()) {
+
+                    int currentPosition = noteContentList.indexOf(noteContent);
+
+                    if (currentPosition > 0 && noteContentList.get(currentPosition - 1).typeCheck() != NoteContent.TYPE_TEXT) {
+                        noteContentList.remove(currentPosition - 1);
+                        contentContainer.removeViewAt(currentPosition - 1);
+
+                        return true;
+                    } else if (currentPosition > 0 &&
+                            noteContentList.get(currentPosition - 1).typeCheck() == NoteContent.TYPE_TEXT){
+                        noteContentList.remove(currentPosition);
+                        contentContainer.removeViewAt(currentPosition);
+                        View previousView = contentContainer.getChildAt(currentPosition - 1);
+                        EditText previousEditText = previousView.findViewById(R.id.inputNote);
+                        previousEditText.requestFocus();
+                        previousEditText.setSelection(previousEditText.getText().length());
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+    }
+
+    private void checkNoteContentListLastItem() {
+
+        if (isLoading) return;
+
+        if (noteContentList.get(noteContentList.size() - 1).typeCheck() != NoteContent.TYPE_TEXT) {
+            addTextContent(new NoteContent(NoteContent.TYPE_TEXT, "", ""));
+        }
+    }
+
+    private void checkNoteContentListpreviousItem() {
+
+        if (isLoading) return;
+
+        ArrayList<EditText> allEditTexts = new ArrayList<>();
+        findAllEditTexts(contentContainer, allEditTexts);
+        if (allEditTexts.get(allEditTexts.size() - 1).getText().toString().trim().isEmpty()
+                && noteContentList.get(noteContentList.size() - 1).getText().equals("")) {
+            allEditTexts.remove(allEditTexts.size() - 1);
+            noteContentList.remove(noteContentList.size() - 1);
+            contentContainer.removeViewAt(contentContainer.getChildCount() - 1);
+        }
+    }
+    //Validation - End
+
+    //Text Formatting - Start
     private String saveTextFormatting(EditText editText) {
         Editable text = editText.getText();
         JSONArray formattingArray = new JSONArray();
@@ -887,7 +1049,7 @@ public class EditActivity extends AppCompatActivity {
         String formattingData = content.getTextFormatting();
         Log.d("SHOW_FORMATTING_DATA", "EXITIING");
         if (formattingData == null || formattingData.isEmpty()) {
-            return;  // Exit if no formatting data
+            return;
         }
         Log.d("SHOW_FORMATTING_DATA", formattingData);
 
@@ -922,6 +1084,7 @@ public class EditActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
+    //Text Formatting - End
 
     private void saveNote() {
         if (inputNoteTitle.getText().toString().trim().isEmpty()) {
@@ -951,7 +1114,7 @@ public class EditActivity extends AppCompatActivity {
         ArrayList<EditText> allEditTexts = new ArrayList<>();
         findAllEditTexts(contentContainer, allEditTexts);
 
-        for(int i = 0; i < noteContentList.size(); i++) {
+        for (int i = 0; i < noteContentList.size(); i++) {
             NoteContent content = noteContentList.get(i);
             Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
 
@@ -967,7 +1130,7 @@ public class EditActivity extends AppCompatActivity {
 
             } else if (content.typeCheck() == NoteContent.TYPE_CHECK) {
                 note.insertCheck(content.isCheckBool(), content.getCheckText());
-            } else if(content.typeCheck() == NoteContent.TYPE_IMAGE) {
+            } else if (content.typeCheck() == NoteContent.TYPE_IMAGE) {
                 note.insertImage(String.valueOf(content.getImagePath()));
             }
         }
@@ -1043,26 +1206,5 @@ public class EditActivity extends AppCompatActivity {
             }
             new DeleteNoteTask().execute();
         }
-    }
-
-    private void openColorPickerDialogue() {
-
-        final AmbilWarnaDialog colorPickerDialogue = new AmbilWarnaDialog(this, mDefaultColor,
-                new AmbilWarnaDialog.OnAmbilWarnaListener() {
-                    @Override
-                    public void onCancel(AmbilWarnaDialog dialog) {
-
-                    }
-
-                    @Override
-                    public void onOk(AmbilWarnaDialog dialog, int color) {
-
-                        mDefaultColor = color;
-                        displayColor.setColorFilter(mDefaultColor);
-                        Log.d("COLOR_VALUE", String.valueOf(color));
-                        drawBoard.setColor(mDefaultColor);
-                    }
-                });
-        colorPickerDialogue.show();
     }
 }

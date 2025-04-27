@@ -50,8 +50,8 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
     public static final int REQUEST_CODE_ADD_NOTE = 1;
     public static final int REQUEST_CODE_UPDATE_NOTE = 2;
     public static final int REQUEST_CODE_VIEW_NOTE = 3;
-
     private static final int REQUEST_CODE_USER_ACTION = 4;
+    private static final int REQUEST_STORAGE_PERMISSION = 5;
 
     private RecyclerView notesRecyclerView;
     private EditText Searchbar;
@@ -160,8 +160,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         popupMenu.show();
     }
 
-    private static final int REQUEST_STORAGE_PERMISSION = 1;
-
     private void requestStoragePermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -177,10 +175,15 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
     }
 
     private void backupNote(List<Note> notes) {
+        String authToken = getAuthToken();
+
+        if(authToken.length() == 1){
+            return;
+        }
+
         int count = 1;
         Log.d("Count", String.valueOf(count++));
         ApiClient apiClient = new ApiClient(this);
-        String authToken = getAuthToken();
         Log.d("AUTHTOKEN", getAuthToken());
         Log.d("Count", String.valueOf(count++));
 
@@ -206,6 +209,7 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                 notesArray.put(noteJson);
             }
             Log.d("Count", String.valueOf(count++));
+
             apiClient.uploadAllNotes(authToken, notesArray, new ApiClient.ApiResponseListener() {
                 @Override
                 public void onSuccess(JSONArray response) {
@@ -237,8 +241,13 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
     }
 
     private void retrieveNote() {
-        ApiClient apiClient = new ApiClient(this);
         String authToken = getAuthToken();
+
+        if(authToken.length() == 1){
+            return;
+        }
+
+        ApiClient apiClient = new ApiClient(this);
         apiClient.getAllNotes(authToken, new ApiClient.ApiResponseListener() {
             @Override
             public void onSuccess(JSONObject response) {
@@ -246,7 +255,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                     String title = response.getString("title");
                     String content = response.getString("content");
                     Log.d("RESPONSE1", String.valueOf(response));
-                    // Update UI with note data
                 } catch (JSONException e) {
                     Log.e("API", "Error parsing note", e);
                 }
@@ -264,6 +272,7 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                         NoteDao noteDao = database.noteDao();
 
                         noteDao.deleteAllNotes();
+
                         for (Note note : notesFromServer) {
                             noteDao.insertNote(note);
                         }

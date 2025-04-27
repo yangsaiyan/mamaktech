@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
+import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -37,6 +38,9 @@ public class PDFGenerator {
     private static final int MAX_PDF_FILES = 20;
 
     public static void generatePdfFromNotes(Context context, Note note, String type) {
+
+        final int MAX_IMAGE_HEIGHT = 450;
+
         PdfDocument document = new PdfDocument();
         PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(612, 792, 1).create();
         PdfDocument.Page page = document.startPage(pageInfo);
@@ -49,6 +53,7 @@ public class PDFGenerator {
         int textSize = 12;
         int margin = 40;
         int spacing = 20;
+        int usableWidth = pageInfo.getPageWidth() - (2 * margin);
 
         Paint titlePaint = getPaint(titleTextSize);
         titlePaint.setFakeBoldText(true);
@@ -124,41 +129,46 @@ public class PDFGenerator {
 
             } else if (content.typeCheck() == NoteContent.TYPE_IMAGE) {
                 try {
-                    String imagePath = content.getImagePath();
+                    String imageBase64 = content.getImagePath();
                     Bitmap imageBitmap = null;
 
-                    if (imagePath.startsWith("content://")) {
-                        Uri imageUri = Uri.parse(imagePath);
-                        try {
-                            imageBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
-                        } catch (Exception e) {
-                            Log.e(TAG, "Failed to load from content URI: " + e.getMessage());
-                            String realPath = getRealPathFromURI(context, imageUri);
-                            if (!realPath.isEmpty()) {
-                                imageBitmap = BitmapFactory.decodeFile(realPath);
-                            }
-                        }
-                    } else {
-                        File imgFile = new File(imagePath);
-                        if (imgFile.exists()) {
-                            imageBitmap = BitmapFactory.decodeFile(imagePath);
+                    if (imageBase64 != null && !imageBase64.isEmpty()) {
+                        if (isBase64Image(imageBase64)) {
+                            byte[] decodedString = Base64.decode(extractBase64Data(imageBase64), Base64.DEFAULT);
+                            imageBitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
                         } else {
-                            try {
-                                Uri imageUri = Uri.parse(imagePath);
-                                imageBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
-                            } catch (Exception e) {
-                                Log.e(TAG, "Failed to load image: " + e.getMessage());
-                            }
+                            imageBitmap = loadImageFromPath(context, imageBase64);
                         }
                     }
 
                     if (imageBitmap != null) {
-                        float pageWidth = pageInfo.getPageWidth() - (2 * margin);
-                        float scaleFactor = pageWidth / imageBitmap.getWidth();
-                        float scaledHeight = imageBitmap.getHeight() * scaleFactor;
+                        float scaledWidth, scaledHeight;
+                        float pageWidth = usableWidth;
+
+                        if (imageBitmap.getWidth() > pageWidth) {
+                            float ratio = pageWidth / imageBitmap.getWidth();
+                            scaledWidth = pageWidth;
+                            scaledHeight = imageBitmap.getHeight() * ratio;
+                        } else {
+                            scaledWidth = imageBitmap.getWidth();
+                            scaledHeight = imageBitmap.getHeight();
+                        }
+
+                        if (scaledHeight > MAX_IMAGE_HEIGHT) {
+                            float ratio = MAX_IMAGE_HEIGHT / scaledHeight;
+                            scaledHeight = MAX_IMAGE_HEIGHT;
+                            scaledWidth = scaledWidth * ratio;
+                        }
+
+                        if (y + scaledHeight > 700) {
+                            document.finishPage(page);
+                            page = document.startPage(pageInfo);
+                            canvas = page.getCanvas();
+                            y = 80;
+                        }
 
                         Rect src = new Rect(0, 0, imageBitmap.getWidth(), imageBitmap.getHeight());
-                        RectF dst = new RectF(margin, y, margin + pageWidth, y + scaledHeight);
+                        RectF dst = new RectF(margin, y, margin + scaledWidth, y + scaledHeight);
                         canvas.drawBitmap(imageBitmap, src, dst, null);
 
                         y += scaledHeight + spacing;
@@ -195,7 +205,6 @@ public class PDFGenerator {
             document.writeTo(outputStream);
             Log.d(TAG, "PDF created successfully");
 
-
             if(type.equals("convertPDF")) {
                 openPdf(context, pdfFile);
             } else {
@@ -215,6 +224,55 @@ public class PDFGenerator {
                 }
             }
         }
+    }
+
+    private static boolean isBase64Image(String str) {
+        return str != null && (str.startsWith("data:image") ||
+                str.startsWith("iVBORw0KGgo") ||
+                str.startsWith("/9j/") ||
+                str.startsWith("R0lGOD"));
+    }
+
+    private static String extractBase64Data(String base64String) {
+        if (base64String.startsWith("data:image")) {
+            return base64String.substring(base64String.indexOf(",") + 1);
+        }
+        return base64String;
+    }
+
+    private static Bitmap loadImageFromPath(Context context, String imagePath) {
+        Bitmap imageBitmap = null;
+
+        try {
+            if (imagePath.startsWith("content://")) {
+                Uri imageUri = Uri.parse(imagePath);
+                try {
+                    imageBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to load from content URI: " + e.getMessage());
+                    String realPath = getRealPathFromURI(context, imageUri);
+                    if (!realPath.isEmpty()) {
+                        imageBitmap = BitmapFactory.decodeFile(realPath);
+                    }
+                }
+            } else {
+                File imgFile = new File(imagePath);
+                if (imgFile.exists()) {
+                    imageBitmap = BitmapFactory.decodeFile(imagePath);
+                } else {
+                    try {
+                        Uri imageUri = Uri.parse(imagePath);
+                        imageBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to load image: " + e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading image from path: " + e.getMessage());
+        }
+
+        return imageBitmap;
     }
 
     public static String getRealPathFromURI(Context context, Uri contentUri) {
@@ -246,7 +304,7 @@ public class PDFGenerator {
                 InputStream inputStream = context.getContentResolver().openInputStream(contentUri);
                 FileOutputStream outputStream = new FileOutputStream(destFile);
 
-                byte[] buffer = new byte[4 * 1024]; // 4k buffer
+                byte[] buffer = new byte[4 * 1024];
                 int read;
                 while ((read = inputStream.read(buffer)) != -1) {
                     outputStream.write(buffer, 0, read);
