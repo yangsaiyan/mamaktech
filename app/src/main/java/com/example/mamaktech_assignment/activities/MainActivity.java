@@ -177,7 +177,8 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
     private void backupNote(List<Note> notes) {
         String authToken = getAuthToken();
 
-        if(authToken.length() == 1){
+        if (authToken == null || authToken.isEmpty()) {
+            Toast.makeText(this, "Not authenticated", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -243,7 +244,8 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
     private void retrieveNote() {
         String authToken = getAuthToken();
 
-        if(authToken.length() == 1){
+        if (authToken == null || authToken.isEmpty()) {
+            Toast.makeText(this, "Not authenticated", Toast.LENGTH_SHORT).show();
             return;
         }
 
