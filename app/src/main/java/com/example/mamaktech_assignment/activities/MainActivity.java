@@ -85,7 +85,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
             @Override
             public void afterTextChanged(Editable s) {
                 String query = s.toString().trim();
-                Log.d("AFTER_TEXT_CHANGED", "query: " + query);
 
                 if (query.isEmpty()) {
                     getNotes();
@@ -93,8 +92,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                     noteList.clear();
                     onSearchChange(query);
                 }
-
-                Log.d("Query Changed", String.valueOf(noteList.size()));
             }
         });
         imageAddNoteMain.setOnClickListener(new View.OnClickListener() {
@@ -183,19 +180,13 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         }
 
         int count = 1;
-        Log.d("Count", String.valueOf(count++));
         ApiClient apiClient = new ApiClient(this);
-        Log.d("AUTHTOKEN", getAuthToken());
-        Log.d("Count", String.valueOf(count++));
 
         if (authToken == null) {
-            Log.d("Count", String.valueOf(count++));
             Toast.makeText(this, "Not authenticated", Toast.LENGTH_SHORT).show();
             return;
         }
-        Log.d("Count", String.valueOf(count++));
         try {
-            Log.d("Count", String.valueOf(count++));
             JSONArray notesArray = new JSONArray();
             for (Note note : notes) {
                 JSONObject noteJson = new JSONObject();
@@ -203,13 +194,11 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                 noteJson.put("subtitle", note.getSubtitle());
                 noteJson.put("date_time", note.getDateTime());
                 noteJson.put("is_pinned", note.isPinned());
-
                 String noteContentJson = new JsonConverter().fromNoteContentList(note.getNoteContentList());
                 noteJson.put("note_content_list", new JSONArray(noteContentJson));
 
                 notesArray.put(noteJson);
             }
-            Log.d("Count", String.valueOf(count++));
 
             apiClient.uploadAllNotes(authToken, notesArray, new ApiClient.ApiResponseListener() {
                 @Override
@@ -217,7 +206,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                     runOnUiThread(() ->
                             Toast.makeText(MainActivity.this, "Notes backed up successfully", Toast.LENGTH_SHORT).show()
                     );
-                    Log.d("RESPONSE", String.valueOf(response));
                 }
 
                 @Override
@@ -225,7 +213,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                     runOnUiThread(() ->
                             Toast.makeText(MainActivity.this, "Notes backed up successfully", Toast.LENGTH_SHORT).show()
                     );
-                    Log.d("RESPONSE", String.valueOf(response));
                 }
 
                 @Override
@@ -256,18 +243,16 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                 try {
                     String title = response.getString("title");
                     String content = response.getString("content");
-                    Log.d("RESPONSE1", String.valueOf(response));
                 } catch (JSONException e) {
-                    Log.e("API", "Error parsing note", e);
                 }
             }
 
             @Override
             public void onSuccess(JSONArray response) {
-                Log.d("RESPONSE2", String.valueOf(response));
 
                 List<Note> notesFromServer = parseNotesFromJson(response);
-
+                noteList.clear();
+                noteList.addAll(notesFromServer);
                 new Thread(() -> {
                     try {
                         NotesDatabase database = NotesDatabase.getDatabase(getApplicationContext());
@@ -278,13 +263,13 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                         for (Note note : notesFromServer) {
                             noteDao.insertNote(note);
                         }
-                        getNotes();
 
                     } catch (Exception e) {
-                        Log.e("Database", "Error updating database", e);
                     }
                 }).start();
+                notesAdapter.setNotes(noteList);
             }
+
 
             @Override
             public void onError(String errorMessage) {
@@ -338,7 +323,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
                 notes.add(note);
             }
         } catch (JSONException e) {
-            Log.e("ParseJson", "Error parsing notes from JSON", e);
             e.printStackTrace();
         }
         return notes;
@@ -359,7 +343,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
             @Override
             protected void onPostExecute(List<Note> notes) {
                 super.onPostExecute(notes);
-                Log.d("SEARCH_RESULTS", notes.toString());
                 noteList.clear();
                 noteList.addAll(notes);
                 notesAdapter.setNotes(noteList);
@@ -375,15 +358,9 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
             @Override
             protected List<Note> doInBackground(Void... voids) {
                 try {
-                    Log.d("DATABASE_DEBUG", "Getting database instance");
                     NotesDatabase db = NotesDatabase.getDatabase(getApplicationContext());
-                    Log.d("DATABASE_DEBUG", "Database instance obtained");
-                    Log.d("DATABASE_DEBUG", "Getting DAO");
                     NoteDao dao = db.noteDao();
-                    Log.d("DATABASE_DEBUG", "DAO obtained");
-                    Log.d("DATABASE_DEBUG", "Executing getAllNotes query");
                     List<Note> notes = dao.getAllNotes();
-                    Log.d("DATABASE_DEBUG", "Query executed, result size: " + (notes != null ? notes.size() : "null"));
                     return notes;
                 } catch (Exception e) {
                     Log.e("DATABASE_ERROR", "Error fetching notes", e);
@@ -395,7 +372,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
             protected void onPostExecute(List<Note> notes) {
                 super.onPostExecute(notes);
                 if (notes != null) {
-                    Log.d("MY_NOTES", "Notes found: " + notes.size());
                     noteList.clear();
                     noteList.addAll(notes);
                     notesAdapter.notifyDataSetChanged();
@@ -412,7 +388,6 @@ public class MainActivity extends AppCompatActivity implements NotesAdapter.Note
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == REQUEST_CODE_ADD_NOTE && resultCode == RESULT_OK) {
-            Log.d("ACTIVITY_RESULT", "Note added successfully, refreshing notes");
             getNotes();
         } else if (requestCode == REQUEST_CODE_UPDATE_NOTE && resultCode == RESULT_OK) {
             if (data != null) {

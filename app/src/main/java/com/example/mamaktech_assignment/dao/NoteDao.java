@@ -30,4 +30,7 @@ public interface NoteDao {
 
     @Query("DELETE FROM notes")
     void deleteAllNotes();
+
+    @Query("DELETE FROM notes where id = :noteId")
+    void deleteNote(int noteId);
 }

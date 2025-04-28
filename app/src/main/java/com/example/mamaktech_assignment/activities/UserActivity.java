@@ -93,7 +93,6 @@ public class UserActivity extends AppCompatActivity {
                             String token = data.getString("token");
                             String userId = data.getString("userId");
 
-                            Log.d("DATA", data.getString("secretWords"));
                             String[] secrets = data.getString("secretWords").substring(1,
                                     data.getString("secretWords").
                                             length() - 1).replace("\"",
@@ -132,7 +131,6 @@ public class UserActivity extends AppCompatActivity {
                 public void onError(String errorMessage) {
                     runOnUiThread(() -> {
                         registerButton.setEnabled(true);
-                        Log.e("API_ERROR", "Error: " + errorMessage);
                         Toast.makeText(UserActivity.this,
                                 "Registration failed: " + errorMessage, Toast.LENGTH_LONG).show();
                     });
@@ -143,7 +141,6 @@ public class UserActivity extends AppCompatActivity {
             registerButton.setEnabled(true);
             Toast.makeText(UserActivity.this,
                     "Invalid input data", Toast.LENGTH_SHORT).show();
-            Log.e("API_ERROR", "JSON creation error", e);
         }
     }
 
@@ -184,7 +181,6 @@ public class UserActivity extends AppCompatActivity {
 
                             Toast.makeText(UserActivity.this,
                                     "Import successful!", Toast.LENGTH_SHORT).show();
-                            Log.e("TOKEN", token);
 
                             Intent intent = new Intent(UserActivity.this, MainActivity.class);
                             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -192,7 +188,6 @@ public class UserActivity extends AppCompatActivity {
                             finish();
 
                         } catch (JSONException e) {
-                            Log.e("API_ERROR", "JSON parsing error", e);
                             Toast.makeText(UserActivity.this,
                                     "Invalid server response", Toast.LENGTH_SHORT).show();
                         }
@@ -206,7 +201,6 @@ public class UserActivity extends AppCompatActivity {
                 @Override
                 public void onError(String errorMessage) {
                     runOnUiThread(() -> {
-                        Log.e("API_ERROR", "Error: " + errorMessage);
                         Toast.makeText(UserActivity.this,
                                 "Login failed: " + errorMessage, Toast.LENGTH_LONG).show();
                     });
@@ -216,7 +210,6 @@ public class UserActivity extends AppCompatActivity {
         } catch (JSONException e) {
             Toast.makeText(UserActivity.this,
                     "Invalid input data", Toast.LENGTH_SHORT).show();
-            Log.e("API_ERROR", "JSON creation error", e);
         }
     }
 }

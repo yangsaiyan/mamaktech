@@ -174,7 +174,6 @@ public class PDFGenerator {
                         y += scaledHeight + spacing;
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "Error processing image: " + e.getMessage());
                     Paint errorPaint = new Paint();
                     errorPaint.setColor(Color.LTGRAY);
                     canvas.drawRect(margin, y, margin + 100, y + 50, errorPaint);
@@ -193,17 +192,14 @@ public class PDFGenerator {
 
         try {
             pdfFile = createPdfFile(context, note.getTitle());
-            Log.d(TAG, "PDF file path: " + pdfFile.getAbsolutePath());
 
             File parent = pdfFile.getParentFile();
             if (parent != null && !parent.exists()) {
                 boolean created = parent.mkdirs();
-                Log.d(TAG, "Created directories: " + created);
             }
 
             outputStream = new FileOutputStream(pdfFile);
             document.writeTo(outputStream);
-            Log.d(TAG, "PDF created successfully");
 
             if(type.equals("convertPDF")) {
                 openPdf(context, pdfFile);
@@ -212,7 +208,6 @@ public class PDFGenerator {
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "Error creating PDF: " + e.getMessage(), e);
             Toast.makeText(context, "Failed to create PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         } finally {
             document.close();
@@ -220,7 +215,6 @@ public class PDFGenerator {
                 try {
                     outputStream.close();
                 } catch (IOException e) {
-                    Log.e(TAG, "Error closing output stream: " + e.getMessage());
                 }
             }
         }
@@ -249,7 +243,6 @@ public class PDFGenerator {
                 try {
                     imageBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
                 } catch (Exception e) {
-                    Log.e(TAG, "Failed to load from content URI: " + e.getMessage());
                     String realPath = getRealPathFromURI(context, imageUri);
                     if (!realPath.isEmpty()) {
                         imageBitmap = BitmapFactory.decodeFile(realPath);
@@ -264,12 +257,10 @@ public class PDFGenerator {
                         Uri imageUri = Uri.parse(imagePath);
                         imageBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
                     } catch (Exception e) {
-                        Log.e(TAG, "Failed to load image: " + e.getMessage());
                     }
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error loading image from path: " + e.getMessage());
         }
 
         return imageBitmap;
@@ -288,7 +279,6 @@ public class PDFGenerator {
                     filePath = cursor.getString(columnIndex);
                 }
             } catch (Exception e) {
-                Log.e("ImagePath", "Error getting real path: " + e.getMessage());
             } finally {
                 if (cursor != null) cursor.close();
             }
@@ -316,7 +306,6 @@ public class PDFGenerator {
 
                 filePath = destFile.getAbsolutePath();
             } catch (Exception e) {
-                Log.e("ImagePath", "Error copying file: " + e.getMessage());
             }
         }
 
@@ -368,7 +357,6 @@ public class PDFGenerator {
 
         if (!docsDir.exists()) {
             boolean created = docsDir.mkdirs();
-            Log.d(TAG, "Created directory " + docsDir.getPath() + ": " + created);
         }
 
         String safeTitle = noteTitle.replaceAll("[^a-zA-Z0-9.-]", "_");
@@ -394,18 +382,15 @@ public class PDFGenerator {
                 File[] files = docsDir.listFiles(file -> file.isFile() && file.getName().endsWith(".pdf"));
 
                 if (files != null && files.length >= maxCount) {
-                    Log.d(TAG, "Found " + files.length + " PDF files, cleaning up older files...");
 
                     Arrays.sort(files, (f1, f2) -> Long.compare(f1.lastModified(), f2.lastModified()));
 
                     for (int i = 0; i < files.length - maxCount + 1; i++) {
                         boolean deleted = files[i].delete();
-                        Log.d(TAG, "Deleted old PDF: " + files[i].getName() + ", success: " + deleted);
                     }
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error limiting PDF files: " + e.getMessage(), e);
         }
     }
 
@@ -423,7 +408,6 @@ public class PDFGenerator {
 
             context.startActivity(intent);
         } catch (Exception e) {
-            Log.e(TAG, "Error opening PDF: " + e.getMessage());
             Toast.makeText(context, "No PDF viewer app found", Toast.LENGTH_SHORT).show();
         }
     }
@@ -443,7 +427,6 @@ public class PDFGenerator {
             context.startActivity(Intent.createChooser(shareIntent, "Share PDF"));
 
         } catch (Exception e) {
-            Log.e(TAG, "Error sharing PDF: " + e.getMessage(), e);
             Toast.makeText(context, "Failed to share PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }

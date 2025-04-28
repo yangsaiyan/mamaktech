@@ -336,11 +336,8 @@ public class EditActivity extends AppCompatActivity {
             noteContentList.clear();
             contentContainer.removeAllViews();
 
-            Log.d("DISPLAY", "Current size before display: " + alreadyAvailableNote.getNoteContentList().size());
-
             if (alreadyAvailableNote.getNoteContentList() != null && !alreadyAvailableNote.getNoteContentList().isEmpty()) {
                 for (NoteContent content : alreadyAvailableNote.getNoteContentList()) {
-                    Log.d("DISPLAY", "Current: " + content.getText());
                     if (content.typeCheck() == NoteContent.TYPE_TEXT && content.getText() != null) {
                         addTextContent(content);
                     } else if (content.typeCheck() == NoteContent.TYPE_CHECK && content.getCheckText() != null) {
@@ -380,7 +377,7 @@ public class EditActivity extends AppCompatActivity {
             speechRecognizer.startListening(intent);
             isListening = true;
         } catch (Exception e) {
-            Log.e("SpeechRecognition", "Start listening failed", e);
+            Toast.makeText(EditActivity.this, "Start listening failed", Toast.LENGTH_SHORT).show();
             handleRecognitionError(SpeechRecognizer.ERROR_CLIENT);
         }
     }
@@ -668,10 +665,7 @@ public class EditActivity extends AppCompatActivity {
 
         LayoutInflater inflater = LayoutInflater.from(this);
         View noteTextView = inflater.inflate(R.layout.note_text, contentContainer, false);
-        ;
         EditText editText = noteTextView.findViewById(R.id.inputNote);
-
-        Log.d("SHOW_FORMATTING_DATA_LENGTH", !Objects.equals(content.getTextFormatting(), "") ? content.getTextFormatting() : String.valueOf(content.getTextFormatting().length()));
 
         if (!Objects.equals(content.getTextFormatting(), "") && content.getTextFormatting().length() > 0) {
             restoreTextFormatting(editText, content);
@@ -803,7 +797,6 @@ public class EditActivity extends AppCompatActivity {
 
         checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             noteContent.setCheckBool(isChecked);
-            Log.d("CHECK_UPDATE", "Checked: " + isChecked);
         });
 
         checkIsEmptyWhenBackspace(noteTextView, editText, noteContent);
@@ -872,7 +865,6 @@ public class EditActivity extends AppCompatActivity {
 
     private void textActions(String type) {
         if (contentContainer == null) {
-            Log.e("TextActions", "contentContainer is null");
             return;
         }
 
@@ -933,7 +925,6 @@ public class EditActivity extends AppCompatActivity {
 
                         mDefaultColor = color;
                         displayColor.setColorFilter(mDefaultColor);
-                        Log.d("COLOR_VALUE", String.valueOf(color));
                         drawBoard.setColor(mDefaultColor);
                     }
                 });
@@ -1047,11 +1038,9 @@ public class EditActivity extends AppCompatActivity {
 
     private void restoreTextFormatting(EditText editText, NoteContent content) {
         String formattingData = content.getTextFormatting();
-        Log.d("SHOW_FORMATTING_DATA", "EXITIING");
         if (formattingData == null || formattingData.isEmpty()) {
             return;
         }
-        Log.d("SHOW_FORMATTING_DATA", formattingData);
 
         editText.setText(content.getText());
         Editable editable = editText.getText();
@@ -1116,7 +1105,6 @@ public class EditActivity extends AppCompatActivity {
 
         for (int i = 0; i < noteContentList.size(); i++) {
             NoteContent content = noteContentList.get(i);
-            Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
 
             if (content.typeCheck() == NoteContent.TYPE_TEXT) {
                 String textFormatting = "";
@@ -1135,33 +1123,14 @@ public class EditActivity extends AppCompatActivity {
             }
         }
 
-        Log.d("SAVE_NOTE", "noteContentList: " + noteContentList.size());
-//        for(NoteContent content: noteContentList){
-//            Log.d("SAVE_NOTE", "CHECK_SAVING_CONTENT: " + content.getText());
-//            if (content.typeCheck() == NoteContent.TYPE_TEXT) {
-//                note.insertText(content.getText());
-//            } else if (content.typeCheck() == NoteContent.TYPE_CHECK) {
-//                note.insertCheck(content.isCheckBool(), content.getCheckText());
-//            } else if(content.typeCheck() == NoteContent.TYPE_IMAGE) {
-//                note.insertImage(String.valueOf(content.getImagePath()));
-//            }
-//        }
-
-        Log.d("SAVE_NOTE", "Note size " + note.getNoteContentList().size());
         @SuppressLint("StaticFieldLeak")
         class SaveNoteTask extends AsyncTask<Void, Void, Void> {
             @Override
             protected Void doInBackground(Void... voids) {
                 try {
-                    Log.d("SAVE_NOTE", "Attempting to save note: " + note.getTitle());
-                    Log.d("SAVE_NOTE", "Note content count: " +
-                            (note.getNoteContentList() != null ? note.getNoteContentList().size() : "null"));
-
                     NotesDatabase.getDatabase(getApplicationContext()).noteDao().insertNote(note);
-                    Log.d("SAVE_NOTE", "Note saved successfully");
                     return null;
                 } catch (Exception e) {
-                    Log.e("SAVE_NOTE", "Error saving note", e);
                     return null;
                 }
             }
@@ -1171,7 +1140,6 @@ public class EditActivity extends AppCompatActivity {
                 super.onPostExecute(aVoid);
                 Intent intent = new Intent();
                 setResult(RESULT_OK, intent);
-                Log.d("SAVE_NOTE", "Returning to MainActivity with RESULT_OK");
                 finish();
             }
         }
@@ -1186,11 +1154,9 @@ public class EditActivity extends AppCompatActivity {
                 protected Void doInBackground(Void... voids) {
                     try {
                         NotesDatabase.getDatabase(getApplicationContext())
-                                .noteDao().deleteAllNotes();
-                        Log.d("DELETE_NOTE", "Note deleted successfully");
+                                .noteDao().deleteNote(alreadyAvailableNote.getId());
                         return null;
                     } catch (Exception e) {
-                        Log.e("DELETE_NOTE", "Error deleting note", e);
                         return null;
                     }
                 }
