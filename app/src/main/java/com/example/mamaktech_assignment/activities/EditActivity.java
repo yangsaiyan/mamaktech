@@ -1079,15 +1079,14 @@ public class EditActivity extends AppCompatActivity {
         if (inputNoteTitle.getText().toString().trim().isEmpty()) {
             Toast.makeText(this, "Note title can't be empty!", Toast.LENGTH_SHORT).show();
             return;
-        } else if (inputNoteSubtitle.getText().toString().trim().isEmpty()
-                && inputNoteText.getText().toString().trim().isEmpty()) {
-            Toast.makeText(this, "Note can't be empty!", Toast.LENGTH_SHORT).show();
+        } else if (noteContentList.size() == 1 && noteContentList.get(noteContentList.size() - 1).getText().equals("")){
+            Toast.makeText(this, "Content can't be empty!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         final Note note = isViewOrUpdate ? alreadyAvailableNote : new Note();
         note.setTitle(inputNoteTitle.getText().toString());
-        note.setSubtitle(inputNoteSubtitle.getText().toString());
+        note.setSubtitle(inputNoteSubtitle.getText().toString().trim());
 
         if (!isViewOrUpdate) {
             note.setDateTime(textDateTime.getText().toString());
