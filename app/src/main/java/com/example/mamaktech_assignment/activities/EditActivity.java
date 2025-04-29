@@ -14,6 +14,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -54,6 +55,7 @@ import com.example.mamaktech_assignment.entities.Board;
 import com.example.mamaktech_assignment.entities.Note;
 import com.example.mamaktech_assignment.entities.NoteContent;
 import com.example.mamaktech_assignment.utils.PDFGenerator;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.slider.Slider;
 
 import org.json.JSONArray;
@@ -79,6 +81,7 @@ public class EditActivity extends AppCompatActivity {
     private List<NoteContent> noteContentList = new ArrayList<>();
     private Board drawBoard;
     private Button pickColorButton;
+    private BottomSheetBehavior<LinearLayout> bottomSheetBehavior;
     private LinearLayout layoutDrawTools, layoutTextTools, layoutDrawBoard, contentContainer;
     private EditText inputNoteTitle, inputNoteSubtitle, inputNoteText;
     private TextView textDateTime;
@@ -100,9 +103,11 @@ public class EditActivity extends AppCompatActivity {
                 new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
                 1);
 
-        mDefaultColor = 0;
         findViewsByIds();
         allSetListeners();
+        mDefaultColor = Color.BLACK;
+        //set to black by default
+        displayColor.setColorFilter(mDefaultColor);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -158,35 +163,35 @@ public class EditActivity extends AppCompatActivity {
         textBold.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                textActions("bold");
+                textActions("bold", "toggle");
             }
         });
 
         textItalic.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                textActions("italic");
+                textActions("italic", "toggle");
             }
         });
 
         textUnderline.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                textActions("underline");
+                textActions("underline", "toggle");
             }
         });
 
         textFontInc.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                textActions("fontInc");
+                textActions("fontInc", "apply");
             }
         });
 
         textFontDcr.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                textActions("fontDcr");
+                textActions("fontDcr", "apply");
             }
         });
 
@@ -245,10 +250,10 @@ public class EditActivity extends AppCompatActivity {
             public void onClick(View view) {
 
                 if (layoutDrawTools.getVisibility() == View.VISIBLE) {
-
                     layoutDrawTools.setVisibility(View.GONE);
                     layoutDrawBoard.setVisibility(View.GONE);
                 } else {
+                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
                     layoutDrawTools.setVisibility(View.VISIBLE);
                     layoutDrawBoard.setVisibility(View.VISIBLE);
                 }
@@ -326,6 +331,9 @@ public class EditActivity extends AppCompatActivity {
         imageSave = findViewById(R.id.imageSave);
         imageBack = findViewById(R.id.imageBack);
         pickColorButton = findViewById(R.id.pickColorButton);
+
+        LinearLayout bottomSheetLayout = findViewById(R.id.bottom_sheet);
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetLayout);
     }
 
     private void setViewOrUpdateNote() {
@@ -863,7 +871,7 @@ public class EditActivity extends AppCompatActivity {
         }
     }
 
-    private void textActions(String type) {
+    private void textActions(String type, String action) {
         if (contentContainer == null) {
             return;
         }
@@ -878,34 +886,104 @@ public class EditActivity extends AppCompatActivity {
                 int selEnd = editText.getSelectionEnd();
 
                 if (selStart != selEnd) {
-                    if (type.equals("bold")) {
-                        editable.setSpan(new StyleSpan(Typeface.BOLD),
-                                selStart, selEnd,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        return;
-                    } else if (type.equals("italic")) {
-                        editable.setSpan(new StyleSpan(Typeface.ITALIC),
-                                selStart, selEnd,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        return;
-                    } else if (type.equals("underline")) {
-                        editable.setSpan(new UnderlineSpan(),
-                                selStart, selEnd,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        return;
-                    } else if (type.equals("fontInc")) {
-                        editable.setSpan(new RelativeSizeSpan(1.25f),
-                                selStart, selEnd,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        return;
-                    } else if (type.equals("fontDcr")) {
-                        editable.setSpan(new RelativeSizeSpan(0.8f),
-                                selStart, selEnd,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        return;
+                    if (action.equals("apply")) {
+                        applyFormatting(type, editable, selStart, selEnd);
+                    } else if (action.equals("remove")) {
+                        removeFormatting(type, editable, selStart, selEnd);
+                    } else if (action.equals("toggle")) {
+                        toggleFormatting(type, editable, selStart, selEnd);
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    private void applyFormatting(String type, Editable editable, int start, int end) {
+        switch (type) {
+            case "bold":
+                editable.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                break;
+            case "italic":
+                editable.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                break;
+            case "underline":
+                editable.setSpan(new UnderlineSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                break;
+            case "fontInc":
+                editable.setSpan(new RelativeSizeSpan(1.25f), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                break;
+            case "fontDcr":
+                editable.setSpan(new RelativeSizeSpan(0.8f), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                break;
+        }
+    }
+
+    private void removeFormatting(String type, Editable editable, int start, int end) {
+        Object[] spans = editable.getSpans(start, end, Object.class);
+
+        for (Object span : spans) {
+            if ((type.equals("bold") && span instanceof StyleSpan && ((StyleSpan)span).getStyle() == Typeface.BOLD) ||
+                    (type.equals("italic") && span instanceof StyleSpan && ((StyleSpan)span).getStyle() == Typeface.ITALIC) ||
+                    (type.equals("underline") && span instanceof UnderlineSpan) ||
+                    ((type.equals("fontInc") || type.equals("fontDcr")) && span instanceof RelativeSizeSpan)) {
+
+                int spanStart = editable.getSpanStart(span);
+                int spanEnd = editable.getSpanEnd(span);
+
+                editable.removeSpan(span);
+
+                if (spanStart < start) {
+                    if (span instanceof StyleSpan) {
+                        editable.setSpan(new StyleSpan(((StyleSpan)span).getStyle()),
+                                spanStart, start, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    } else if (span instanceof UnderlineSpan) {
+                        editable.setSpan(new UnderlineSpan(), spanStart, start, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    } else if (span instanceof RelativeSizeSpan) {
+                        editable.setSpan(new RelativeSizeSpan(((RelativeSizeSpan)span).getSizeChange()),
+                                spanStart, start, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    }
+                }
+
+                if (spanEnd > end) {
+                    if (span instanceof StyleSpan) {
+                        editable.setSpan(new StyleSpan(((StyleSpan)span).getStyle()),
+                                end, spanEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    } else if (span instanceof UnderlineSpan) {
+                        editable.setSpan(new UnderlineSpan(), end, spanEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    } else if (span instanceof RelativeSizeSpan) {
+                        editable.setSpan(new RelativeSizeSpan(((RelativeSizeSpan)span).getSizeChange()),
+                                end, spanEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                 }
             }
+        }
+    }
+
+    private void toggleFormatting(String type, Editable editable, int start, int end) {
+        boolean hasFormatting = false;
+
+        Object[] spans = editable.getSpans(start, end, Object.class);
+        for (Object span : spans) {
+            if ((type.equals("bold") && span instanceof StyleSpan && ((StyleSpan)span).getStyle() == Typeface.BOLD) ||
+                    (type.equals("italic") && span instanceof StyleSpan && ((StyleSpan)span).getStyle() == Typeface.ITALIC) ||
+                    (type.equals("underline") && span instanceof UnderlineSpan) ||
+                    ((type.equals("fontInc") || type.equals("fontDcr")) && span instanceof RelativeSizeSpan)) {
+
+                int spanStart = editable.getSpanStart(span);
+                int spanEnd = editable.getSpanEnd(span);
+
+                if (spanStart <= start && spanEnd >= end) {
+                    hasFormatting = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasFormatting) {
+            removeFormatting(type, editable, start, end);
+        } else {
+            applyFormatting(type, editable, start, end);
         }
     }
     //Content Text Utility - End
