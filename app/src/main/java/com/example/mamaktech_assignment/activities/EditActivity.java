@@ -153,12 +153,8 @@ public class EditActivity extends AppCompatActivity {
         imageBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-                if (checkModifiedNote()) {
-                    showExitConfirmationDialog(EditActivity.this);
-                } else {
-                    onBackPressed();
-                }
+                // Use the same behavior as system back button
+                onBackPressed();
             }
         });
 
@@ -596,9 +592,21 @@ public class EditActivity extends AppCompatActivity {
                         @Override
                         protected void onPostExecute(Void aVoid) {
                             super.onPostExecute(aVoid);
+                            // Update the in-memory note to match database
+                            boolean wasPinned = alreadyAvailableNote.isPinned();
+                            alreadyAvailableNote.setPinned(!wasPinned);
+                            isPinnedCheck = !wasPinned;
+
+                            // Return a result with the updated pin status
+                            Intent intent = new Intent();
+                            intent.putExtra("noteId", alreadyAvailableNote.getId());
+                            intent.putExtra("isPinned", alreadyAvailableNote.isPinned());
+                            setResult(RESULT_OK, intent);
+
                             String message = alreadyAvailableNote.isPinned() ?
                                     "Note pinned successfully" : "Note unpinned successfully";
                             Toast.makeText(EditActivity.this, message, Toast.LENGTH_SHORT).show();
+                            finish();
                         }
                     }
                     new TogglePinTask().execute();
@@ -1035,48 +1043,73 @@ public class EditActivity extends AppCompatActivity {
     }
 
     private boolean checkModifiedNote() {
-        if (alreadyAvailableNote == null) {
-            return false;
+        // For existing notes, check for changes
+        if (alreadyAvailableNote != null) {
+            boolean titleChanged = !alreadyAvailableNote.getTitle().trim().equals(inputNoteTitle.getText().toString().trim());
+            boolean subtitleChanged = !alreadyAvailableNote.getSubtitle().trim().equals(inputNoteSubtitle.getText().toString().trim());
+            boolean pinnedStatusChanged = alreadyAvailableNote.isPinned() != isPinnedCheck;
+
+            // Check for content changes as before
+            boolean contentChanged = checkContentChanges();
+
+            return titleChanged || subtitleChanged || pinnedStatusChanged || contentChanged;
+        }
+        // For new notes, check if user has entered any content
+        else {
+            boolean hasTitleText = !inputNoteTitle.getText().toString().trim().isEmpty();
+            boolean hasSubtitleText = !inputNoteSubtitle.getText().toString().trim().isEmpty();
+
+            // Check if any content exists other than an empty text field
+            boolean hasContent = noteContentList.size() > 1 ||
+                    (noteContentList.size() == 1 && !noteContentList.get(0).getText().isEmpty());
+
+            return hasTitleText || hasSubtitleText || hasContent;
+        }
+    }
+
+    private boolean checkContentChanges() {
+        if (alreadyAvailableNote.getNoteContentList().size() != noteContentList.size()) {
+            return true;
         }
 
-        boolean titleChanged = !alreadyAvailableNote.getTitle().trim().equals(inputNoteTitle.getText().toString().trim());
-        boolean subtitleChanged = !alreadyAvailableNote.getSubtitle().trim().equals(inputNoteSubtitle.getText().toString().trim());
-        boolean pinnedStatusChanged = alreadyAvailableNote.isPinned() != isPinnedCheck;
+        ArrayList<EditText> allEditTexts = new ArrayList<>();
+        findAllEditTexts(contentContainer, allEditTexts);
 
-        boolean contentChanged = false;
-        if (alreadyAvailableNote.getNoteContentList().size() != noteContentList.size()) {
-            contentChanged = true;
-        } else {
-            for (int i = 0; i < noteContentList.size(); i++) {
-                NoteContent original = alreadyAvailableNote.getNoteContentList().get(i);
-                NoteContent current = noteContentList.get(i);
+        for (int i = 0; i < noteContentList.size(); i++) {
+            NoteContent original = alreadyAvailableNote.getNoteContentList().get(i);
+            NoteContent current = noteContentList.get(i);
 
-                if (original.typeCheck() != current.typeCheck()) {
-                    contentChanged = true;
-                    break;
+            if (original.typeCheck() != current.typeCheck()) {
+                return true;
+            }
+
+            if (current.typeCheck() == NoteContent.TYPE_TEXT) {
+                if (!current.getText().equals(original.getText())) {
+                    return true;
                 }
 
-                if (original.typeCheck() == current.typeCheck() &&
-                        current.typeCheck() == NoteContent.TYPE_TEXT
-                        && !current.getText().equals(original.getText())) {
-                    contentChanged = true;
-                    break;
-                } else if (original.typeCheck() == current.typeCheck() &&
-                        current.typeCheck() == NoteContent.TYPE_CHECK
-                        && (!current.getCheckText().equals(original.getCheckText())
-                        || current.isCheckBool() != original.isCheckBool())) {
-                    contentChanged = true;
-                    break;
-                } else if (original.typeCheck() == current.typeCheck() &&
-                        current.typeCheck() == NoteContent.TYPE_IMAGE
-                        && !current.getImagePath().equals(original.getImagePath())) {
-                    contentChanged = true;
-                    break;
+                // Check formatting changes
+                for (EditText editText : allEditTexts) {
+                    if (editText.getText().toString().equals(current.getText())) {
+                        String currentFormatting = saveTextFormatting(editText);
+                        String originalFormatting = original.getTextFormatting();
+
+                        if (!currentFormatting.equals(originalFormatting)) {
+                            return true;
+                        }
+                    }
                 }
+            } else if (current.typeCheck() == NoteContent.TYPE_CHECK &&
+                    (!current.getCheckText().equals(original.getCheckText())
+                            || current.isCheckBool() != original.isCheckBool())) {
+                return true;
+            } else if (current.typeCheck() == NoteContent.TYPE_IMAGE
+                    && !current.getImagePath().equals(original.getImagePath())) {
+                return true;
             }
         }
 
-        return titleChanged || subtitleChanged || pinnedStatusChanged || contentChanged;
+        return false;
     }
     //Validation - End
 
@@ -1188,6 +1221,39 @@ public class EditActivity extends AppCompatActivity {
         negetiveButton.setTextColor(context.getResources().getColor(R.color.black, context.getTheme()));
     }
 
+
+    @Override
+    public void onBackPressed() {
+        if (checkModifiedNote()) {
+            // Show a dialog with Save/Discard/Cancel options
+            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+            AlertDialog dialog = builder.setTitle("Save Changes")
+                    .setMessage("Do you want to save changes to this note?")
+                    .setPositiveButton("Save", (dialogInterface, which) -> {
+                        saveNote();
+                    })
+                    .setNegativeButton("Don't Save", (dialogInterface, which) -> {
+                        super.onBackPressed();
+                    })
+                    .setNeutralButton("Cancel", (dialogInterface, which) -> {
+                        dialogInterface.dismiss();
+                    })
+                    .create();
+
+            dialog.show();
+
+            Button positiveButton = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negativeButton = dialog.getButton(DialogInterface.BUTTON_NEGATIVE);
+            Button neutralButton = dialog.getButton(DialogInterface.BUTTON_NEUTRAL);
+            positiveButton.setTextColor(getResources().getColor(R.color.black, getTheme()));
+            negativeButton.setTextColor(getResources().getColor(R.color.black, getTheme()));
+            neutralButton.setTextColor(getResources().getColor(R.color.black, getTheme()));
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+
     private void saveNote() {
         if (inputNoteTitle.getText().toString().trim().isEmpty()) {
             Toast.makeText(this, "Note title can't be empty!", Toast.LENGTH_SHORT).show();
@@ -1235,6 +1301,8 @@ public class EditActivity extends AppCompatActivity {
             }
         }
 
+
+
         @SuppressLint("StaticFieldLeak")
         class SaveNoteTask extends AsyncTask<Void, Void, Void> {
             @Override
@@ -1251,10 +1319,19 @@ public class EditActivity extends AppCompatActivity {
             protected void onPostExecute(Void aVoid) {
                 super.onPostExecute(aVoid);
                 Intent intent = new Intent();
+                // Include note ID and pin status so the main activity can update its view
+                if (isViewOrUpdate) {
+                    intent.putExtra("noteId", alreadyAvailableNote.getId());
+                    intent.putExtra("isPinned", alreadyAvailableNote.isPinned());
+                }
                 setResult(RESULT_OK, intent);
                 finish();
             }
         }
+
+
+
+
         new SaveNoteTask().execute();
     }
 
